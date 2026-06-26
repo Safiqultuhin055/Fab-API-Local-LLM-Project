@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - AI Gateway{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+{% block crumb %}Real-time overview of your AI gateway{% endblock %}
+{% block body %}
+
+<!-- system status strip -->
+<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:18px;
+  background:linear-gradient(120deg,rgba(99,102,241,.18),rgba(168,85,247,.12));border:1px solid rgba(255,255,255,.12)">
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="ic" style="width:48px;height:48px;background:linear-gradient(135deg,#6366f1,#a855f7)">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 6v6l4 2"/></svg>
+    </div>
+    <div><div style="font-size:16px;font-weight:700">Gateway Online</div>
+      <div class="muted" style="font-size:12.5px">All systems streaming through local Ollama</div></div>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    {% set svc = [('Database', health.database, 'SQL Server'), ('Ollama', health.ollama, 'LLM engine'),
+                  ('Redis', health.redis, 'rate limiter')] %}
+    {% for name, ok, desc in svc %}
+    <div style="display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.05);border:1px solid var(--glass-line);
+      border-radius:12px;padding:9px 13px">
+      <span style="width:9px;height:9px;border-radius:50%;
+        background:{{ '#34d399' if ok else ('#fbbf24' if ok is none else '#fb7185') }};
+        box-shadow:0 0 10px {{ '#34d399' if ok else ('#fbbf24' if ok is none else '#fb7185') }};
+        {{ 'animation:pulse 2s infinite' if ok }}"></span>
+      <div style="line-height:1.15"><b style="font-size:12.5px">{{ name }}</b>
+        <div class="muted" style="font-size:10.5px">{{ 'Operational' if ok else ('Not configured' if ok is none else 'Offline') }}</div></div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- KPI cards (count-up) -->
+<div class="grid kpis" style="margin-bottom:18px">
+  {% set cards = [
+    ('Total Requests', stats.total_requests, '#6366f1', 'M3 3v18h18', false),
+    ('Today', stats.today_requests, '#a855f7', 'M12 8v4l3 3', false),
+    ('Active Keys', stats.active_api_keys, '#22d3ee', 'M7 14a4 4 0 100-8 4 4 0 000 8z', false),
+    ('Total Keys', stats.total_api_keys, '#0ea5e9', 'M4 4h16v16H4z', false),
+    ('Errors', stats.error_count, '#fb7185', 'M12 9v4m0 4h.01', false),
+    ('Avg Latency', stats.avg_response_time_ms, '#34d399', 'M12 6v6l4 2', true),
+  ] %}
+  {% for label,value,color,path,isms in cards %}
+  <div class="card kpi">
+    <div>
+      <div class="label">{{ label }}</div>
+      <div class="value"><span class="count" data-to="{{ value }}" data-ms="{{ '1' if isms else '0' }}">0</span>{{ ' ms' if isms }}</div>
+      <span class="chip {{ 'up' if label in ['Total Requests','Active Keys'] else 'flat' }}">
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 17l6-6 4 4 8-8"/></svg>
+        {% if label=='Errors' %}monitored{% elif label=='Avg Latency' %}response{% else %}live{% endif %}
+      </span>
+    </div>
+    <div class="ic" style="background:linear-gradient(135deg,{{ color }},{{ color }}aa)">
+      <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" stroke-width="2"><path d="{{ path }}"/></svg>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- trend + status -->
+<div class="grid" style="grid-template-columns:2fr 1fr;margin-bottom:18px">
+  <div class="panel">
+    <div class="head"><div><h3>Request Trend</h3><div class="sub">Last 14 days - peak {{ trend.top }}/day</div></div>
+      <span class="pill neutral">14d</span></div>
+    <div class="body">
+      <svg viewBox="0 0 {{ trend.width }} {{ trend.height }}" width="100%" preserveAspectRatio="none" style="display:block">
+        <defs>
+          <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.35"/><stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="ln" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#a855f7"/>
+          </linearGradient>
+        </defs>
+        {% for gy in trend.grid %}<line x1="28" y1="{{ gy }}" x2="{{ trend.width-28 }}" y2="{{ gy }}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>{% endfor %}
+        <polygon points="{{ trend.area }}" fill="url(#area)"/>
+        <polyline points="{{ trend.line }}" fill="none" stroke="url(#ln)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" style="filter:drop-shadow(0 0 6px rgba(99,102,241,.6))"/>
+        {% for x,y in trend.dots %}<circle cx="{{ x }}" cy="{{ y }}" r="2.6" fill="#0a0f24" stroke="#22d3ee" stroke-width="2"/>{% endfor %}
+        {% for lb in trend.labels %}<text x="{{ lb.x }}" y="{{ trend.height-6 }}" font-size="10" fill="#7c87aa" text-anchor="middle">{{ lb.text }}</text>{% endfor %}
+      </svg>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="head"><div><h3>Status Breakdown</h3><div class="sub">All requests</div></div></div>
+    <div class="body">
+      {% set srows = [('Success 2xx/3xx', status.ok, status_pct.ok, '#34d399'),
+                      ('Client 4xx', status.client_error, status_pct.client_error, '#fbbf24'),
+                      ('Server 5xx', status.server_error, status_pct.server_error, '#fb7185')] %}
+      {% for name,count,pct,color in srows %}
+      <div style="margin-bottom:15px">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px">
+          <span class="muted">{{ name }}</span><b>{{ count }} <span class="muted">({{ pct }}%)</span></b></div>
+        <div style="height:9px;background:rgba(255,255,255,.07);border-radius:999px;overflow:hidden">
+          <div class="bar" style="width:0;--w:{{ pct }}%;height:100%;background:linear-gradient(90deg,{{ color }},{{ color }}cc);border-radius:999px;box-shadow:0 0 10px {{ color }}88;transition:width 1s ease"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- model usage + recent -->
+<div class="grid" style="grid-template-columns:1fr 2fr">
+  <div class="panel">
+    <div class="head"><div><h3>Model Usage</h3><div class="sub">Share of requests</div></div></div>
+    <div class="body">
+      {% set ns = namespace(acc=0, stops=[]) %}
+      {% for m in models %}{% set _ = ns.stops.append(m.color ~ ' ' ~ ns.acc ~ '% ' ~ (ns.acc + m.pct) ~ '%') %}{% set ns.acc = ns.acc + m.pct %}{% endfor %}
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <div style="width:130px;height:130px;border-radius:50%;flex:0 0 auto;position:relative;
+          background:conic-gradient({{ ns.stops|join(', ') if ns.stops else 'rgba(255,255,255,.1) 0% 100%' }});
+          box-shadow:0 0 30px rgba(99,102,241,.35)">
+          <div style="position:absolute;inset:24px;border-radius:50%;background:#0c1126;display:grid;place-items:center;text-align:center">
+            <div><b style="font-size:19px">{{ models|sum(attribute='count') }}</b><br><span class="muted" style="font-size:10px">requests</span></div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:150px">
+          {% for m in models %}
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:12.5px">
+            <span style="width:11px;height:11px;border-radius:3px;background:{{ m.color }};box-shadow:0 0 8px {{ m.color }}88;flex:0 0 auto"></span>
+            <code style="background:none;padding:0">{{ m.name }}</code>
+            <span style="margin-left:auto"><b>{{ m.pct }}%</b> <span class="muted">({{ m.count }})</span></span>
+          </div>
+          {% else %}<div class="muted">No requests yet.</div>{% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="head"><div><h3>Recent Activity</h3><div class="sub">Latest requests</div></div>
+      <a class="btn ghost sm" href="/admin/ui/logs">View all</a></div>
+    <div class="body" style="padding:0">
+      <table>
+        <thead><tr><th>Key</th><th>Model</th><th>Endpoint</th><th>Status</th><th>Tokens</th><th>Time</th><th>When</th></tr></thead>
+        <tbody>
+        {% for r in recent %}
+          <tr>
+            <td><code>{{ r.key_prefix or '-' }}</code></td>
+            <td>{{ r.model or '-' }}</td>
+            <td class="muted">{{ r.endpoint }}</td>
+            <td>{% if r.status_code < 400 %}<span class="pill ok">{{ r.status_code }}</span>{% elif r.status_code < 500 %}<span class="pill warn">{{ r.status_code }}</span>{% else %}<span class="pill off">{{ r.status_code }}</span>{% endif %}</td>
+            <td>{{ r.total_tokens or 0 }}</td>
+            <td>{{ r.response_time_ms or 0 }} ms</td>
+            <td class="muted">{{ r.created_date.strftime('%m/%d %H:%M') }}</td>
+          </tr>
+        {% else %}<tr><td colspan="7" class="muted" style="padding:24px;text-align:center">No requests yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>@keyframes pulse{50%{opacity:.35}}</style>
+<script>
+  // count-up KPI animation
+  document.querySelectorAll('.count').forEach(el=>{
+    const to=parseFloat(el.dataset.to)||0,ms=el.dataset.ms==='1',dur=900,t0=performance.now();
+    function step(t){const p=Math.min((t-t0)/dur,1),e=1-Math.pow(1-p,3),v=to*e;
+      el.textContent=ms?v.toFixed(1):Math.round(v).toLocaleString();if(p<1)requestAnimationFrame(step);}
+    requestAnimationFrame(step);
+  });
+  // animate status bars
+  requestAnimationFrame(()=>document.querySelectorAll('.bar').forEach(b=>b.style.width=b.style.getPropertyValue('--w')));
+</script>
+{% endblock %}

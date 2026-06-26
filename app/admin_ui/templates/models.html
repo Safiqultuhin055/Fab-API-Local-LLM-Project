@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Models · AI Gateway Admin{% endblock %}
+{% block heading %}Models{% endblock %}
+{% block crumb %}Enable, disable, and set the default model{% endblock %}
+{% block body %}
+
+<div class="panel" style="margin-bottom:18px">
+  <div class="head"><div><h3>Default Model</h3><div class="sub">Used when a client omits the model</div></div></div>
+  <div class="body">
+    <form method="post" action="/admin/ui/models/default" class="row">
+      <div class="field"><label>Default model</label><input name="name" value="{{ default }}" style="min-width:220px"></div>
+      <button class="btn" type="submit">Set Default</button>
+    </form>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="head"><div><h3>Installed Models</h3><div class="sub">From the local Ollama server</div></div></div>
+  <div class="body" style="padding:0">
+    <table>
+      <thead><tr><th>Model</th><th>Status</th><th>Default</th><th style="text-align:right">Action</th></tr></thead>
+      <tbody>
+      {% for m in models %}
+        <tr>
+          <td><code>{{ m.name }}</code></td>
+          <td>{% if m.enabled %}<span class="pill ok">enabled</span>{% else %}<span class="pill off">disabled</span>{% endif %}</td>
+          <td>{% if m.name == default %}<span class="pill neutral">default</span>{% endif %}</td>
+          <td style="text-align:right">
+            <form class="inline" method="post" action="/admin/ui/models/{{ m.name }}/toggle">
+              <input type="hidden" name="enable" value="{{ '0' if m.enabled else '1' }}">
+              <button class="btn {{ 'danger' if m.enabled else '' }} sm" type="submit">{{ 'Disable' if m.enabled else 'Enable' }}</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="muted" style="padding:24px;text-align:center">Ollama returned no models — is it running? <code>ollama pull llama3.1</code></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

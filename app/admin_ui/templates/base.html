@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <title>{% block title %}AI Gateway Admin{% endblock %}</title>
+  <style>
+    :root{
+      --bg:#070a16;--panel:rgba(20,26,48,.55);--panel-solid:#121733;--glass-line:rgba(255,255,255,.09);
+      --ink:#eaeef9;--ink2:#aeb8d6;--muted:#7c87aa;--line:rgba(255,255,255,.08);
+      --accent:#6366f1;--cyan:#22d3ee;--violet:#a855f7;--green:#34d399;--amber:#fbbf24;--red:#fb7185;
+      --shadow:0 18px 50px rgba(2,4,16,.55);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0}
+    body{font:14px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+      color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}
+    /* animated aurora backdrop */
+    .aurora{position:fixed;inset:0;z-index:0;pointer-events:none;
+      background:
+        radial-gradient(50vw 50vw at 12% 8%,rgba(99,102,241,.30),transparent 60%),
+        radial-gradient(45vw 45vw at 88% 14%,rgba(34,211,238,.22),transparent 60%),
+        radial-gradient(60vw 60vw at 70% 100%,rgba(168,85,247,.26),transparent 60%);
+      animation:drift 20s ease-in-out infinite alternate;filter:saturate(1.1)}
+    @keyframes drift{100%{filter:hue-rotate(26deg) saturate(1.2)}}
+    @media(prefers-reduced-motion:reduce){.aurora{animation:none}}
+
+    .shell{position:relative;z-index:1;display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+
+    /* sidebar */
+    aside{padding:18px 13px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;
+      background:rgba(10,14,30,.6);backdrop-filter:blur(18px);border-right:1px solid var(--glass-line)}
+    .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 20px}
+    .brand .logo{position:relative;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff;
+      background:linear-gradient(135deg,var(--accent),var(--violet))}
+    .brand .logo::after{content:"";position:absolute;inset:-6px;border-radius:16px;z-index:-1;
+      background:conic-gradient(from 0deg,var(--cyan),var(--accent),var(--violet),var(--cyan));filter:blur(11px);opacity:.5;animation:spin 7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .brand b{color:#fff;font-size:15px;display:block;letter-spacing:.2px}
+    .brand span{font-size:11px;color:var(--muted)}
+    .nav-label{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#62719b;margin:16px 10px 7px}
+    nav{display:flex;flex-direction:column;gap:3px}
+    nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;color:var(--ink2);font-weight:500;transition:.16s;position:relative}
+    nav a svg{width:18px;height:18px;flex:0 0 auto;opacity:.85}
+    nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+    nav a.active{color:#fff;background:linear-gradient(135deg,rgba(99,102,241,.35),rgba(168,85,247,.25));
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),0 8px 22px rgba(99,102,241,.30)}
+    nav a.active::before{content:"";position:absolute;left:-13px;top:8px;bottom:8px;width:3px;border-radius:3px;background:linear-gradient(var(--cyan),var(--violet))}
+    aside .foot{margin-top:auto;padding:12px 10px 2px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
+
+    main{display:flex;flex-direction:column;min-width:0}
+    .topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:14px 26px;
+      background:rgba(10,14,30,.5);backdrop-filter:blur(14px);border-bottom:1px solid var(--glass-line)}
+    .topbar h2{margin:0;font-size:18px;font-weight:700}
+    .topbar .crumb{font-size:12px;color:var(--muted);margin-top:2px}
+    .userbox{display:flex;align-items:center;gap:12px}
+    .userbox .who{text-align:right;line-height:1.2}.userbox .who b{font-size:13px}.userbox .who span{font-size:11px;color:var(--muted)}
+    .avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;
+      background:linear-gradient(135deg,var(--accent),var(--violet));box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+    .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 13px;border:0;border-radius:10px;font:inherit;font-weight:600;cursor:pointer;
+      background:linear-gradient(135deg,var(--accent),#4f46e5);color:#fff;transition:.15s}
+    .btn:hover{filter:brightness(1.08)}
+    .btn.ghost{background:rgba(255,255,255,.08);color:var(--ink)}
+    .btn.ghost:hover{background:rgba(255,255,255,.14)}
+    .btn.danger{background:linear-gradient(135deg,#ef4444,#dc2626)}
+    .btn.sm{padding:6px 10px;font-size:12.5px}
+    .content{padding:24px 26px 40px}
+
+    .grid{display:grid;gap:16px}
+    .kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+    .card,.panel{background:var(--panel);backdrop-filter:blur(16px);border:1px solid var(--glass-line);border-radius:16px;box-shadow:var(--shadow)}
+    .card{padding:17px 18px}
+    .kpi{display:flex;align-items:flex-start;justify-content:space-between}
+    .kpi .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#fff;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+    .kpi .label{color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+    .kpi .value{font-size:30px;font-weight:800;margin-top:6px;letter-spacing:-.5px;
+      background:linear-gradient(90deg,#fff,#c7d2fe);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin-top:9px}
+    .chip.up{background:rgba(52,211,153,.16);color:#6ee7b7}
+    .chip.flat{background:rgba(255,255,255,.08);color:var(--ink2)}
+    .panel .head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line)}
+    .panel .head h3{margin:0;font-size:14.5px;font-weight:700}
+    .panel .head .sub{font-size:12px;color:var(--muted)}
+    .panel .body{padding:18px}
+
+    table{width:100%;border-collapse:collapse}
+    th,td{text-align:left;padding:11px 14px;font-size:13px;border-bottom:1px solid var(--line);vertical-align:middle}
+    th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;background:rgba(255,255,255,.02)}
+    tbody tr:last-child td{border-bottom:0}
+    tbody tr:hover{background:rgba(255,255,255,.04)}
+    code{background:rgba(255,255,255,.07);padding:2px 7px;border-radius:6px;font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace;color:#c7d2fe}
+    .pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+    .pill.ok{background:rgba(52,211,153,.16);color:#6ee7b7}
+    .pill.off{background:rgba(251,113,133,.16);color:#fda4af}
+    .pill.warn{background:rgba(251,191,36,.16);color:#fcd34d}
+    .pill.neutral{background:rgba(255,255,255,.08);color:var(--ink2)}
+    .muted{color:var(--muted)}
+    form.inline{display:inline}
+    input,select{font:inherit;padding:9px 11px;border:1px solid var(--glass-line);border-radius:10px;background:rgba(255,255,255,.05);color:var(--ink)}
+    input::placeholder{color:#6b779b}
+    input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.22)}
+    select option{background:#121733;color:#fff}
+    .field label{display:block;font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:5px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+    .banner{display:flex;gap:10px;align-items:flex-start;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#a7f3d0;padding:13px 15px;border-radius:13px;margin-bottom:18px}
+    .pglink{padding:7px 12px;border:1px solid var(--glass-line);border-radius:10px;background:rgba(255,255,255,.05);font-weight:600;color:var(--ink)}
+    .pglink:hover{background:rgba(255,255,255,.1)}
+
+    @media (max-width:880px){.shell{grid-template-columns:1fr}aside{position:fixed;left:-260px;width:250px;z-index:30;transition:.2s}
+      #navtoggle:checked ~ .shell aside{left:0;box-shadow:var(--shadow)}.hamb{display:inline-grid}}
+    .hamb{display:none;place-items:center;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.08);cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="aurora"></div>
+  <input type="checkbox" id="navtoggle" hidden>
+  <div class="shell">
+    <aside>
+      <div class="brand">
+        <div class="logo"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 19l-4.8 2.5.9-5.4L4.2 8.7l5.4-.8z"/></svg></div>
+        <div><b>AI Gateway</b><span>Admin Console</span></div>
+      </div>
+      <div class="nav-label">Overview</div>
+      <nav>
+        <a href="/admin/ui" class="{{ 'active' if active=='dashboard' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dashboard</a>
+      </nav>
+      <div class="nav-label">Management</div>
+      <nav>
+        <a href="/admin/ui/keys" class="{{ 'active' if active=='keys' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.5 12.5L20 3m-3 0h3v3"/></svg>API Keys</a>
+        <a href="/admin/ui/models" class="{{ 'active' if active=='models' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4.5v9L12 20l-8-4.5v-9z"/><path d="M12 11l8-4.5M12 11v9M12 11L4 6.5"/></svg>Models</a>
+        <a href="/admin/ui/logs" class="{{ 'active' if active=='logs' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Request Logs</a>
+      </nav>
+      <div class="nav-label">Developer</div>
+      <nav>
+        <a href="/chat" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Chat Playground</a>
+        <a href="/docs" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11H4z"/><path d="M14 4v5h5"/></svg>API Docs</a>
+      </nav>
+      <div class="foot">v0.1 - SQL Server - Ollama<br>(c) AI Gateway Platform</div>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div style="display:flex;align-items:center;gap:14px">
+          <label class="hamb" for="navtoggle"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></label>
+          <div><h2>{% block heading %}Dashboard{% endblock %}</h2><div class="crumb">{% block crumb %}AI Gateway - Admin{% endblock %}</div></div>
+        </div>
+        <div class="userbox">
+          <div class="who"><b>{{ admin or 'admin' }}</b><span>Super Admin</span></div>
+          <div class="avatar">{{ (admin or 'A')[0]|upper }}</div>
+          <a class="btn ghost sm" href="/admin/ui/logout">Logout</a>
+        </div>
+      </div>
+      <div class="content">{% block body %}{% endblock %}</div>
+    </main>
+  </div>
+</body>
+</html>

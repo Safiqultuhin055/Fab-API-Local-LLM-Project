@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Request Logs · AI Gateway Admin{% endblock %}
+{% block heading %}Request Logs{% endblock %}
+{% block crumb %}{{ total }} total requests{% endblock %}
+{% block body %}
+
+<div class="panel">
+  <div class="head"><div><h3>Requests</h3><div class="sub">Page {{ page }} · privacy-aware bodies</div></div></div>
+  <div class="body" style="padding:0">
+    <table>
+      <thead><tr><th>ID</th><th>Key</th><th>Model</th><th>Endpoint</th><th>Status</th><th>Prompt</th><th>Tokens</th><th>Time</th><th>IP</th><th>Created</th></tr></thead>
+      <tbody>
+      {% for r in logs %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td><code>{{ r.key_prefix or '-' }}</code></td>
+          <td>{{ r.model or '-' }}</td>
+          <td class="muted">{{ r.endpoint }}</td>
+          <td>{% if r.status_code < 400 %}<span class="pill ok">{{ r.status_code }}</span>{% elif r.status_code < 500 %}<span class="pill warn">{{ r.status_code }}</span>{% else %}<span class="pill off">{{ r.status_code }}</span>{% endif %}</td>
+          <td class="muted">{{ (r.prompt or '')[:50] }}{% if r.prompt and r.prompt|length > 50 %}…{% endif %}</td>
+          <td>{{ r.total_tokens or 0 }}</td>
+          <td>{{ r.response_time_ms or 0 }} ms</td>
+          <td class="muted">{{ r.ip_address or '-' }}</td>
+          <td class="muted">{{ r.created_date.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="10" class="muted" style="padding:24px;text-align:center">No logs.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+  {% if page > 1 %}<a class="pglink" href="/admin/ui/logs?page={{ page-1 }}">← Prev</a>{% endif %}
+  <span class="muted">Page {{ page }} of {{ ((total / page_size)|round(0,'ceil'))|int or 1 }}</span>
+  {% if page * page_size < total %}<a class="pglink" href="/admin/ui/logs?page={{ page+1 }}">Next →</a>{% endif %}
+</div>
+{% endblock %}

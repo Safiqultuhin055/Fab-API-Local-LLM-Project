@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <title>Sign in - AI Gateway</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;overflow:hidden}
+    body{font:14.5px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+      color:#e8ecf6;background:#05070f;position:relative}
+
+    /* animated gradient mesh behind the particle canvas */
+    .mesh{position:fixed;inset:0;z-index:0;
+      background:
+        radial-gradient(60vw 60vw at 18% 22%, rgba(79,70,229,.55), transparent 60%),
+        radial-gradient(55vw 55vw at 82% 30%, rgba(14,165,233,.40), transparent 60%),
+        radial-gradient(70vw 70vw at 55% 95%, rgba(124,58,237,.50), transparent 60%),
+        linear-gradient(160deg,#070a18,#0a0f24 55%,#0d0a22);
+      animation:drift 18s ease-in-out infinite alternate}
+    @keyframes drift{0%{filter:hue-rotate(0deg) saturate(1)}100%{filter:hue-rotate(28deg) saturate(1.15)}}
+    canvas#net{position:fixed;inset:0;z-index:1;display:block}
+    .vign{position:fixed;inset:0;z-index:2;pointer-events:none;
+      background:radial-gradient(closest-side at 50% 45%, transparent 40%, rgba(3,5,12,.55) 100%)}
+
+    /* layout */
+    .stage{position:relative;z-index:3;height:100vh;display:grid;place-items:center;padding:24px}
+
+    /* brand above card */
+    .brand{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:26px;
+      animation:rise .9s cubic-bezier(.2,.8,.2,1) both}
+    .orb{position:relative;width:74px;height:74px;border-radius:22px;display:grid;place-items:center;
+      background:linear-gradient(135deg,#2563eb,#7c3aed);
+      box-shadow:0 0 0 1px rgba(255,255,255,.12),0 18px 50px rgba(99,102,241,.55)}
+    .orb svg{filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))}
+    .orb::after{content:"";position:absolute;inset:-10px;border-radius:30px;
+      background:conic-gradient(from 0deg,#22d3ee,#6366f1,#a855f7,#22d3ee);
+      filter:blur(16px);opacity:.55;z-index:-1;animation:spin 6s linear infinite}
+    .ring{position:absolute;inset:-18px;border-radius:50%;border:1px dashed rgba(160,180,255,.35);
+      animation:spin 14s linear infinite}
+    .brand h1{margin:0;font-size:22px;letter-spacing:.3px;font-weight:700;
+      background:linear-gradient(90deg,#fff,#c7d2fe);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .brand p{margin:0;color:#93a0c4;font-size:12.5px;letter-spacing:.18em;text-transform:uppercase}
+
+    /* glass card with rotating glow border */
+    .card{position:relative;width:404px;max-width:94vw;padding:34px 32px 30px;border-radius:22px;
+      background:rgba(17,22,43,.55);backdrop-filter:blur(22px) saturate(1.2);
+      border:1px solid rgba(255,255,255,.10);box-shadow:0 30px 80px rgba(2,4,16,.65);
+      animation:rise 1s .08s cubic-bezier(.2,.8,.2,1) both}
+    .card::before{content:"";position:absolute;inset:-1.5px;border-radius:23px;z-index:-1;
+      background:conic-gradient(from var(--a,0deg),transparent 0 60%,#22d3ee 72%,#7c3aed 82%,transparent 92%);
+      animation:rotate 5s linear infinite}
+    @property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
+    @keyframes rotate{to{--a:360deg}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes rise{from{opacity:0;transform:translateY(22px) scale(.98)}to{opacity:1;transform:none}}
+
+    .card h2{margin:0 0 4px;font-size:21px;font-weight:700}
+    .card .sub{margin:0 0 24px;color:#9aa7c9;font-size:13.5px}
+
+    .field{margin-bottom:16px;animation:rise .7s both}
+    .field:nth-of-type(1){animation-delay:.18s}.field:nth-of-type(2){animation-delay:.26s}
+    .field label{display:block;font-size:12px;font-weight:600;color:#aab6d8;margin-bottom:7px;letter-spacing:.02em}
+    .inp{position:relative;display:flex;align-items:center}
+    .inp .lic{position:absolute;left:13px;color:#7f8cb0;pointer-events:none}
+    .inp input{width:100%;padding:13px 44px 13px 40px;border-radius:12px;font:inherit;color:#fff;
+      background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);transition:.18s}
+    .inp input::placeholder{color:#6b779b}
+    .inp input:focus{outline:none;border-color:#6366f1;background:rgba(99,102,241,.10);
+      box-shadow:0 0 0 4px rgba(99,102,241,.20)}
+    .toggle{position:absolute;right:8px;border:0;background:none;cursor:pointer;color:#8b97bd;padding:7px;border-radius:9px;display:grid;place-items:center}
+    .toggle:hover{background:rgba(255,255,255,.07);color:#cdd6f0}
+
+    .btn{width:100%;margin-top:8px;padding:13px;border:0;border-radius:12px;cursor:pointer;font:inherit;font-weight:700;
+      letter-spacing:.3px;color:#fff;background:linear-gradient(135deg,#4f46e5,#2563eb);position:relative;overflow:hidden;
+      display:flex;align-items:center;justify-content:center;gap:9px;animation:rise .7s .34s both;
+      box-shadow:0 12px 30px rgba(37,99,235,.45)}
+    .btn:hover{filter:brightness(1.08)}
+    .btn:disabled{opacity:.8;cursor:wait}
+    .btn .shine{position:absolute;top:0;left:-120%;width:60%;height:100%;
+      background:linear-gradient(110deg,transparent,rgba(255,255,255,.35),transparent);animation:sweep 3s ease-in-out infinite}
+    @keyframes sweep{0%,60%{left:-120%}100%{left:160%}}
+    .spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;display:none}
+    @keyframes sp{to{transform:rotate(360deg)}}
+
+    .err{display:flex;gap:9px;align-items:center;background:rgba(239,68,68,.16);border:1px solid rgba(239,68,68,.35);
+      color:#fecaca;padding:11px 13px;border-radius:12px;font-size:13px;margin-bottom:18px;font-weight:600}
+    .meta{margin-top:20px;text-align:center;color:#8390b4;font-size:11.5px;display:flex;gap:8px;align-items:center;justify-content:center;animation:rise .7s .42s both}
+    .dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e;animation:pulse 2s infinite}
+    @keyframes pulse{50%{opacity:.4}}
+    .pagefoot{position:fixed;bottom:16px;left:0;right:0;text-align:center;color:#5a648a;font-size:11.5px;z-index:3}
+    @media(prefers-reduced-motion:reduce){*{animation:none!important}}
+  </style>
+</head>
+<body>
+  <div class="mesh"></div>
+  <canvas id="net"></canvas>
+  <div class="vign"></div>
+
+  <div class="stage">
+    <div>
+      <div class="brand">
+        <div class="orb"><span class="ring"></span>
+          <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 19l-4.8 2.5.9-5.4L4.2 8.7l5.4-.8z"/></svg>
+        </div>
+        <div style="text-align:center"><h1>AI Gateway</h1><p>Admin Console</p></div>
+      </div>
+
+      <form class="card" method="post" action="/admin/ui/login" id="form">
+        <h2>Welcome back</h2>
+        <p class="sub">Sign in to manage your local AI gateway.</p>
+        {% if error %}
+        <div class="err"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fecaca" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4m0 4h.01"/></svg>{{ error }}</div>
+        {% endif %}
+        <div class="field">
+          <label>Username</label>
+          <div class="inp">
+            <svg class="lic" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></svg>
+            <input type="text" name="username" autocomplete="username" placeholder="admin" autofocus required>
+          </div>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <div class="inp">
+            <svg class="lic" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+            <input type="password" name="password" id="pw" autocomplete="current-password" placeholder="Enter your password" required>
+            <button type="button" class="toggle" id="toggle" aria-label="Show password">
+              <svg id="eye" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <button class="btn" type="submit" id="submit">
+          <span class="shine"></span>
+          <span class="spin" id="spin"></span>
+          <span id="btxt">Sign In</span>
+          <svg id="arrow" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </button>
+        <div class="meta"><span class="dot"></span> Secure session - encrypted credentials</div>
+      </form>
+    </div>
+  </div>
+  <div class="pagefoot">Local Ollama AI Gateway - SQL Server - FastAPI</div>
+
+<script>
+/* ---- password toggle + submit state ---- */
+const pw=document.getElementById('pw');
+document.getElementById('toggle').onclick=()=>{const s=pw.type==='password';pw.type=s?'text':'password';document.getElementById('eye').style.opacity=s?.5:1;};
+document.getElementById('form').addEventListener('submit',()=>{
+  document.getElementById('submit').disabled=true;
+  document.getElementById('spin').style.display='block';
+  document.getElementById('arrow').style.display='none';
+  document.getElementById('btxt').textContent='Signing in...';
+});
+
+/* ---- neural-network particle field ---- */
+const cv=document.getElementById('net'),ctx=cv.getContext('2d');
+let W,H,DPR,nodes=[],mouse={x:-999,y:-999};
+const COLORS=['#22d3ee','#6366f1','#a855f7','#38bdf8'];
+function resize(){DPR=Math.min(window.devicePixelRatio||1,2);W=cv.width=innerWidth*DPR;H=cv.height=innerHeight*DPR;
+  cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';init();}
+function init(){
+  const count=Math.min(110,Math.floor(innerWidth*innerHeight/14000));
+  nodes=Array.from({length:count},()=>({
+    x:Math.random()*W,y:Math.random()*H,
+    vx:(Math.random()-.5)*.35*DPR,vy:(Math.random()-.5)*.35*DPR,
+    r:(Math.random()*1.8+1)*DPR,c:COLORS[(Math.random()*COLORS.length)|0]
+  }));
+}
+addEventListener('resize',resize);
+addEventListener('mousemove',e=>{mouse.x=e.clientX*DPR;mouse.y=e.clientY*DPR;});
+addEventListener('mouseleave',()=>{mouse.x=mouse.y=-9999;});
+const LINK=130;
+function frame(){
+  ctx.clearRect(0,0,W,H);
+  const link=LINK*DPR;
+  for(let i=0;i<nodes.length;i++){
+    const n=nodes[i];
+    // drift + gentle mouse attraction
+    const dxm=mouse.x-n.x,dym=mouse.y-n.y,dm=Math.hypot(dxm,dym);
+    if(dm<200*DPR){n.vx+=dxm/dm*.015;n.vy+=dym/dm*.015;}
+    n.x+=n.vx;n.y+=n.vy;n.vx*=.99;n.vy*=.99;
+    if(n.x<0||n.x>W)n.vx*=-1;if(n.y<0||n.y>H)n.vy*=-1;
+    // glow node
+    ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,7);ctx.fillStyle=n.c;
+    ctx.shadowBlur=12*DPR;ctx.shadowColor=n.c;ctx.fill();ctx.shadowBlur=0;
+    // links
+    for(let j=i+1;j<nodes.length;j++){
+      const m=nodes[j],dx=n.x-m.x,dy=n.y-m.y,d=Math.hypot(dx,dy);
+      if(d<link){ctx.strokeStyle='rgba(120,150,255,'+(1-d/link)*.5+')';
+        ctx.lineWidth=DPR*.6;ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(m.x,m.y);ctx.stroke();}
+    }
+    // link to cursor
+    if(dm<link*1.4){ctx.strokeStyle='rgba(34,211,238,'+(1-dm/(link*1.4))*.6+')';
+      ctx.lineWidth=DPR*.8;ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(mouse.x,mouse.y);ctx.stroke();}
+  }
+  requestAnimationFrame(frame);
+}
+resize();frame();
+</script>
+</body>
+</html>

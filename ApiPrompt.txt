@@ -1,0 +1,452 @@
+Act as a Principal Software Architect, Senior Python Developer, Enterprise Solution Architect, SQL Server DBA, DevOps Engineer and Cyber Security Expert.
+
+Analyze the provided system architecture and design a complete enterprise-grade AI Gateway Platform.
+
+Technology Stack:
+
+Backend:
+- Python 3.11+
+- FastAPI
+- SQLAlchemy 2.0
+- Pydantic V2
+- Alembic
+- Uvicorn/Gunicorn
+
+Database:
+- Microsoft SQL Server 2019+
+
+AI Layer:
+- Ollama Local LLM
+- llama3.1
+- mistral
+- deepseek-r1
+- gemma
+
+Caching:
+- Redis
+
+Authentication:
+- JWT Access Token
+- JWT Refresh Token
+- API Key Authentication
+
+Security:
+- RBAC
+- IP Whitelist
+- Request Validation
+- SQL Injection Protection
+- XSS Protection
+- Audit Logging
+- Secure Secret Management
+
+Frontend Admin:
+- React Admin Dashboard
+OR
+- FastAPI Jinja Dashboard
+
+Deployment:
+- Docker
+- Docker Compose
+- Nginx Reverse Proxy
+- Windows Server Support
+- Linux Server Support
+
+=================================================
+
+PROJECT OBJECTIVE
+
+Build a production-ready Local AI Gateway Platform similar to OpenAI API.
+
+The system will expose REST APIs that can be consumed from:
+
+- Oracle APEX
+- PHP Laravel
+- ASP.NET
+- Python Applications
+- React Applications
+- Mobile Apps
+- Internal Enterprise Systems
+
+All AI processing must run locally through Ollama.
+
+No external AI provider should be required.
+
+=================================================
+
+SYSTEM MODULES
+
+1. Authentication Module
+
+Features:
+
+- Login
+- Logout
+- Refresh Token
+- Password Reset
+- Change Password
+- User Profile
+
+=================================================
+
+2. User Management Module
+
+Features:
+
+- Create User
+- Update User
+- Delete User
+- Activate User
+- Deactivate User
+- Assign Roles
+
+Roles:
+
+- Super Admin
+- Admin
+- Developer
+- User
+- API Consumer
+
+=================================================
+
+3. API Key Management Module
+
+Features:
+
+- Create API Key
+- Regenerate API Key
+- Disable API Key
+- Expire API Key
+- Rate Limit Per Key
+- Usage Monitoring
+
+Generate Keys:
+
+AI-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+=================================================
+
+4. AI Chat Module
+
+Endpoints:
+
+POST /api/v1/chat
+
+POST /api/v1/chat/stream
+
+Request:
+
+{
+  "model":"llama3.1",
+  "prompt":"Create Oracle SQL Query",
+  "temperature":0.2,
+  "max_tokens":2000
+}
+
+Response:
+
+{
+  "success":true,
+  "response":"..."
+}
+
+=================================================
+
+5. Model Management Module
+
+Endpoints:
+
+GET /api/v1/models
+
+GET /api/v1/models/status
+
+Features:
+
+- Detect Installed Models
+- Enable Model
+- Disable Model
+- Default Model Selection
+
+Supported Models:
+
+- llama3
+- llama3.1
+- mistral
+- deepseek-r1
+- gemma
+
+=================================================
+
+6. Request Logging Module
+
+Store:
+
+- API Key
+- User
+- Model
+- Prompt
+- Response
+- Token Count
+- Execution Time
+- IP Address
+- User Agent
+- Timestamp
+
+=================================================
+
+7. Analytics Dashboard
+
+Dashboard Cards:
+
+- Total Users
+- Active Users
+- Active API Keys
+- Total Requests
+- Daily Requests
+- Monthly Requests
+- Error Count
+- Response Time
+
+Charts:
+
+- Request Trends
+- Model Usage
+- User Activity
+- Error Analysis
+
+=================================================
+
+8. Rate Limiting
+
+Per API Key:
+
+Free Tier:
+100 Requests/Day
+
+Professional:
+10000 Requests/Day
+
+Enterprise:
+Unlimited
+
+=================================================
+
+DATABASE DESIGN
+
+Create complete SQL Server schema.
+
+Tables:
+
+users
+
+roles
+
+permissions
+
+user_roles
+
+api_keys
+
+api_key_usage
+
+models
+
+request_logs
+
+audit_logs
+
+rate_limits
+
+system_settings
+
+notifications
+
+sessions
+
+refresh_tokens
+
+error_logs
+
+=================================================
+
+DATABASE REQUIREMENTS
+
+Include:
+
+- Primary Keys
+- Foreign Keys
+- Unique Constraints
+- Check Constraints
+- Indexes
+- Soft Delete
+- Created By
+- Created Date
+- Updated By
+- Updated Date
+
+=================================================
+
+PROJECT STRUCTURE
+
+Generate complete folder structure:
+
+src/
+
+api/
+
+core/
+
+database/
+
+models/
+
+schemas/
+
+repositories/
+
+services/
+
+middlewares/
+
+security/
+
+utils/
+
+admin/
+
+tests/
+
+migrations/
+
+docker/
+
+docs/
+
+=================================================
+
+IMPLEMENT
+
+1. Repository Pattern
+
+2. Service Layer Pattern
+
+3. Dependency Injection
+
+4. SOLID Principles
+
+5. Clean Architecture
+
+6. Domain Driven Design
+
+=================================================
+
+SECURITY
+
+Implement:
+
+- JWT Authentication
+- Refresh Tokens
+- API Keys
+- Password Hashing
+- RBAC
+- Audit Trail
+- CORS
+- CSRF Protection
+- SQL Injection Protection
+- XSS Protection
+
+=================================================
+
+DEVOPS
+
+Generate:
+
+Dockerfile
+
+Docker Compose
+
+Nginx Config
+
+Environment Configuration
+
+Backup Strategy
+
+Deployment Guide
+
+CI/CD Pipeline
+
+=================================================
+
+TESTING
+
+Generate:
+
+- Unit Tests
+- Integration Tests
+- API Tests
+- Load Tests
+
+Coverage Target:
+
+90%+
+
+=================================================
+
+DOCUMENTATION
+
+Generate:
+
+1. ER Diagram
+
+2. API Documentation
+
+3. Swagger UI
+
+4. Deployment Guide
+
+5. Architecture Diagram
+
+6. Database Design Document
+
+7. User Manual
+
+=================================================
+
+CODING STANDARDS
+
+Requirements:
+
+- Enterprise Grade
+- Production Ready
+- Fully Typed
+- Fully Documented
+- Async First
+- Scalable
+- Maintainable
+- Secure
+
+=================================================
+
+FINAL OUTPUT
+
+Generate in sequence:
+
+1. Complete Solution Architecture
+2. Folder Structure
+3. SQL Server Scripts
+4. SQLAlchemy Models
+5. Pydantic Schemas
+6. Security Module
+7. Authentication Module
+8. API Key Module
+9. Ollama Service
+10. REST APIs
+11. Admin Dashboard Backend
+12. Logging System
+13. Analytics Module
+14. Docker Deployment
+15. Nginx Config
+16. Tests
+17. Production Deployment Guide
+
+Generate actual implementation code, not pseudocode.

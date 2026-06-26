@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}API Keys · AI Gateway Admin{% endblock %}
+{% block heading %}API Keys{% endblock %}
+{% block crumb %}Create, monitor, and revoke API keys{% endblock %}
+{% block body %}
+
+<!-- summary KPIs -->
+<div class="grid kpis" style="margin-bottom:18px">
+  {% set kc = [
+    ('Total Keys', summary.total, '#2563eb', 'M4 4h16v16H4z'),
+    ('Active', summary.active, '#16a34a', 'M20 6L9 17l-5-5'),
+    ('Paid Tier', summary.paid, '#7c3aed', 'M12 2l8 4.5v9L12 20l-8-4.5v-9z'),
+    ('Requests Served', summary.requests, '#0891b2', 'M3 3v18h18'),
+  ] %}
+  {% for label,value,color,path in kc %}
+  <div class="card kpi">
+    <div><div class="label">{{ label }}</div><div class="value">{{ value }}</div></div>
+    <div class="ic" style="background:linear-gradient(135deg,{{ color }},{{ color }}cc)">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="{{ path }}"/></svg>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if new_key %}
+<div class="banner" id="newkey">
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#065f46" stroke-width="2" style="flex:0 0 auto;margin-top:2px"><path d="M20 6L9 17l-5-5"/></svg>
+  <div style="flex:1">
+    <strong>New API key created — copy it now. It is shown only once.</strong>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <code id="rawkey" style="font-size:14px;flex:1;overflow:auto">{{ new_key }}</code>
+      <button class="btn sm" type="button" onclick="copyText('{{ new_key }}', this)">Copy</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- toolbar -->
+<div class="panel" style="margin-bottom:18px">
+  <div class="head">
+    <div style="display:flex;align-items:center;gap:12px;flex:1">
+      <h3 style="margin:0">All Keys</h3>
+      <div style="position:relative;margin-left:8px">
+        <input id="search" placeholder="Search owner or prefix…" oninput="filterKeys()" style="padding-left:32px;min-width:240px">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#94a3b8" stroke-width="2" style="position:absolute;left:10px;top:11px"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      </div>
+      <select id="tierfilter" onchange="filterKeys()"><option value="">All tiers</option><option>free</option><option>pro</option><option>enterprise</option></select>
+    </div>
+    <button class="btn" type="button" onclick="document.getElementById('drawer').classList.add('open')">+ New Key</button>
+  </div>
+  <div class="body" style="padding:0">
+    <table id="keytable">
+      <thead><tr><th>ID</th><th>Key</th><th>Owner</th><th>Status</th><th>Tier</th><th>Usage</th><th>Limit</th><th>IP allow</th><th>Last used</th><th></th></tr></thead>
+      <tbody>
+      {% for k in keys %}
+        {% set row = k.row %}
+        <tr data-owner="{{ row.owner_name|lower }}" data-prefix="{{ row.key_prefix|lower }}" data-tier="{{ row.tier }}">
+          <td>{{ row.id }}</td>
+          <td>
+            <code>{{ row.key_prefix }}••••••</code>
+            {% if k.full_key %}
+            <button class="btn ghost sm" type="button" title="Copy full API key" style="padding:3px 7px;margin-left:4px" onclick="copyText('{{ k.full_key }}', this)">⧉ Copy key</button>
+            {% else %}
+            <button class="btn ghost sm" type="button" title="Full key not recoverable (legacy key)" style="padding:3px 7px;margin-left:4px;opacity:.5" onclick="copyText('{{ row.key_prefix }}', this)">⧉ prefix</button>
+            {% endif %}
+          </td>
+          <td><b>{{ row.owner_name }}</b></td>
+          <td>{% if row.status=='active' %}<span class="pill ok">● active</span>{% else %}<span class="pill off">● {{ row.status }}</span>{% endif %}</td>
+          <td>
+            {% if row.tier=='enterprise' %}<span class="pill" style="background:#ede9fe;color:#6d28d9">enterprise</span>
+            {% elif row.tier=='pro' %}<span class="pill" style="background:#dbeafe;color:#1d4ed8">pro</span>
+            {% else %}<span class="pill neutral">free</span>{% endif %}
+          </td>
+          <td>
+            <b>{{ k.requests }}</b> <span class="muted" style="font-size:11px">reqs</span>
+            {% if k.errors %}<br><span class="muted" style="font-size:11px;color:#b91c1c">{{ k.errors }} errors</span>{% endif %}
+          </td>
+          <td>{{ row.rate_limit }}</td>
+          <td class="muted">{{ row.ip_whitelist or 'any' }}</td>
+          <td class="muted">{{ row.last_used.strftime('%m/%d %H:%M') if row.last_used else '—' }}</td>
+          <td style="text-align:right">
+            <form class="inline" method="post" action="/admin/ui/keys/{{ row.id }}/delete"
+                  onsubmit="return confirm('Revoke key {{ row.key_prefix }}…? This cannot be undone.');">
+              <button class="btn danger sm" type="submit">Revoke</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <div id="empty" class="muted" style="padding:24px;text-align:center;display:{{ 'block' if not keys else 'none' }}">No keys match.</div>
+  </div>
+</div>
+
+<!-- create slide-over -->
+<div id="drawer" class="drawer">
+  <div class="drawer-panel">
+    <div class="drawer-head"><h3>Create API Key</h3>
+      <button class="btn ghost sm" type="button" onclick="document.getElementById('drawer').classList.remove('open')">✕</button></div>
+    <form method="post" action="/admin/ui/keys" style="padding:18px;display:grid;gap:16px">
+      <div class="field"><label>Owner name</label><input name="owner_name" required placeholder="My Project"></div>
+      <div class="field"><label>Tier</label>
+        <select name="tier"><option value="free">Free — 100 requests/day</option><option value="pro">Pro — 10,000/day</option><option value="enterprise">Enterprise — unlimited</option></select>
+      </div>
+      <div class="field"><label>Rate limit</label><input name="rate_limit" type="number" value="1000"></div>
+      <div class="field"><label>IP whitelist (optional, comma-separated)</label><input name="ip_whitelist" placeholder="127.0.0.1,10.0.0.5"></div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="btn" type="submit" style="flex:1">Create Key</button>
+        <button class="btn ghost" type="button" onclick="document.getElementById('drawer').classList.remove('open')">Cancel</button>
+      </div>
+      <p class="muted" style="font-size:12px;margin:0">The full key is shown once after creation. Only an HMAC hash is stored.</p>
+    </form>
+  </div>
+</div>
+
+<style>
+  .drawer{position:fixed;inset:0;background:rgba(2,6,23,.45);display:none;z-index:40}
+  .drawer.open{display:block}
+  .drawer-panel{position:absolute;right:0;top:0;height:100%;width:420px;max-width:92vw;background:#fff;
+    box-shadow:-20px 0 60px rgba(0,0,0,.25);animation:slide .22s ease}
+  @keyframes slide{from{transform:translateX(40px);opacity:.4}to{transform:none;opacity:1}}
+  .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:18px;border-bottom:1px solid var(--line)}
+  .drawer-head h3{margin:0}
+</style>
+<script>
+  function copyText(t, btn){
+    navigator.clipboard.writeText(t).then(()=>{const o=btn.textContent;btn.textContent='✓ Copied';setTimeout(()=>btn.textContent=o,1400);});
+  }
+  function filterKeys(){
+    const q=document.getElementById('search').value.toLowerCase();
+    const tier=document.getElementById('tierfilter').value;
+    let shown=0;
+    document.querySelectorAll('#keytable tbody tr').forEach(tr=>{
+      const m=(tr.dataset.owner.includes(q)||tr.dataset.prefix.includes(q))&&(!tier||tr.dataset.tier===tier);
+      tr.style.display=m?'':'none'; if(m)shown++;
+    });
+    document.getElementById('empty').style.display=shown?'none':'block';
+  }
+</script>
+{% endblock %}

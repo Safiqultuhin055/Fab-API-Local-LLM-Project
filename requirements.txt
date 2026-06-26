@@ -1,0 +1,13 @@
+# --- Local Ollama AI Gateway: pinned runtime deps ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+sqlalchemy==2.0.36
+aiosqlite==0.20.0          # default dev DB driver (async SQLite)
+# aioodbc==0.5.0           # uncomment for SQL Server prod (needs ODBC Driver 18)
+greenlet==3.1.1
+httpx==0.28.1
+redis==5.2.1               # optional rate-limit/cache backend
+argon2-cffi==23.1.0        # password hashing (enterprise track)
+python-json-logger==3.2.1

@@ -12,6 +12,15 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       RATE_LIMIT_BACKEND: redis
       REDIS_URL: redis://redis:6379/0
+      # SQL Server selection (all read from .env; listed for visibility).
+      # A LAN IP like 192.168.153.248 is reachable from the container as-is.
+      # If SQL Server runs on the DOCKER HOST instead, set MSSQL_HOST=host.docker.internal.
+      MSSQL_HOST: ${MSSQL_HOST:-}
+      MSSQL_PORT: ${MSSQL_PORT:-1433}
+      MSSQL_DATABASE: ${MSSQL_DATABASE:-EasyHishabIMDB}
+      MSSQL_USER: ${MSSQL_USER:-sa}
+      MSSQL_PASSWORD: ${MSSQL_PASSWORD:-}
+      MSSQL_DRIVER: ${MSSQL_DRIVER:-ODBC Driver 18 for SQL Server}
     ports:
       - "8000:8000"
     depends_on:

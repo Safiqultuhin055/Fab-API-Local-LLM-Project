@@ -27,6 +27,7 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
+    logger.info("Database: %s", engine.url.render_as_string(hide_password=True))
     await init_db()
     app.state.ollama = build_llm_service()
     app.state.rate_limiter = build_rate_limiter()

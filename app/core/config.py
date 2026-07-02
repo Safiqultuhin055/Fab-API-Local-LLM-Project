@@ -24,7 +24,22 @@ class Settings(BaseSettings):
     debug: bool = True
 
     # --- Database ---
+    # Local fallback (always works, zero-config). Used when SQL Server below is
+    # not configured or is unreachable at startup.
     database_url: str = "sqlite+aiosqlite:///./ai_gateway.db"
+
+    # --- SQL Server (optional primary DB) ---
+    # If MSSQL_HOST + MSSQL_PASSWORD are set AND the server answers on the port at
+    # startup, the gateway uses SQL Server; otherwise it auto-falls back to the
+    # local SQLite database_url above. Needs ODBC Driver 18 + aioodbc installed.
+    mssql_host: str = ""                 # e.g. 192.168.153.248 (empty = disabled)
+    mssql_port: int = 1433
+    mssql_database: str = "EasyHishabIMDB"
+    mssql_user: str = "sa"
+    mssql_password: str = ""
+    mssql_driver: str = "ODBC Driver 18 for SQL Server"
+    # Seconds to probe SQL Server before deciding to fall back to SQLite.
+    db_probe_timeout: float = 3.0
 
     # --- Security ---
     hmac_secret: str = "dev-insecure-change-me"
@@ -88,6 +103,21 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def mssql_url(self) -> str | None:
+        """Async SQLAlchemy URL for SQL Server, or None if not configured."""
+        if not (self.mssql_host and self.mssql_password):
+            return None
+        from urllib.parse import quote_plus
+
+        user = quote_plus(self.mssql_user)
+        pwd = quote_plus(self.mssql_password)
+        driver = quote_plus(self.mssql_driver)
+        return (
+            f"mssql+aioodbc://{user}:{pwd}@{self.mssql_host}:{self.mssql_port}/"
+            f"{self.mssql_database}?driver={driver}&TrustServerCertificate=yes"
+        )
 
 
 @lru_cache

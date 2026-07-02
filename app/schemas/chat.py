@@ -1,7 +1,16 @@
 """Chat request/response schemas — match the diagram's documented shapes."""
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+
+class ChatMessage(BaseModel):
+    """One prior turn of the conversation, for multi-turn memory."""
+
+    role: Literal["user", "assistant"]
+    content: str
 
 
 class ChatRequest(BaseModel):
@@ -12,6 +21,9 @@ class ChatRequest(BaseModel):
     stream: bool = False
     images: list[str] | None = Field(
         None, description="Optional image data URLs (base64) for vision models"
+    )
+    history: list[ChatMessage] | None = Field(
+        None, description="Prior turns (oldest first) so the model remembers context"
     )
 
 

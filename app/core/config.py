@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     # Min cosine similarity of the best chunk to treat the KB as relevant.
     # Above -> answer from knowledge base; below -> fall back to the model.
     rag_min_score: float = 0.4
+    # Max seconds to wait for the KB search (embed + rank). If retrieval takes
+    # longer, give up on RAG and answer straight from the model.
+    rag_timeout_seconds: float = 30.0
 
     # --- Rate limiting ---
     rate_limit_backend: Literal["memory", "redis"] = "memory"

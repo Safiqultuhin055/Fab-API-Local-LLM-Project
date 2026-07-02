@@ -14,7 +14,9 @@ from pydantic import BaseModel, Field
 from app.api.deps import AdminAuth, ApiKeyAuth, DbSession, RagDep
 from app.core.config import settings
 from app.core.errors import APIError
+from app.core.history import format_history
 from app.core.logging import request_id_ctx
+from app.schemas.chat import ChatMessage
 from app.services import log_service
 
 router = APIRouter(prefix="/v1/rag", tags=["rag"])
@@ -23,6 +25,9 @@ router = APIRouter(prefix="/v1/rag", tags=["rag"])
 class RagRequest(BaseModel):
     prompt: str = Field(..., min_length=1, examples=["What databases does he know?"])
     top_k: int | None = Field(None, ge=1, le=12)
+    history: list[ChatMessage] | None = Field(
+        None, description="Prior turns (oldest first) so the bot remembers context"
+    )
 
 
 @router.get("/status")
@@ -90,7 +95,7 @@ async def rag_smart(
 ) -> dict[str, object]:
     """RAG-first: answer from the knowledge base if relevant, else from the model."""
     started = time.perf_counter()
-    out = await rag.smart_answer(body.prompt, body.top_k)
+    out = await rag.smart_answer(body.prompt, body.top_k, format_history(body.history))
     elapsed = int((time.perf_counter() - started) * 1000)
     await log_service.write_log(
         db, api_key_id=key.id, key_prefix=key.key_prefix,
@@ -119,7 +124,9 @@ async def rag_smart_stream(
         mode = "model"
         sent_meta = False
         try:
-            async for token, done, meta in rag.smart_stream(body.prompt, body.top_k):
+            async for token, done, meta in rag.smart_stream(
+                body.prompt, body.top_k, format_history(body.history)
+            ):
                 if not sent_meta:
                     mode = meta["mode"]
                     yield f"data: {json.dumps({'meta': meta})}\n\n"

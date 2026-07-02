@@ -166,27 +166,53 @@ class RagService:
 
     # --- Smart routing: RAG-first, automatic fallback to the model ---
     @staticmethod
-    def _hybrid_prompt(query: str, hits: list[dict]) -> str:
+    def _hybrid_prompt(query: str, hits: list[dict], history: str = "") -> str:
         context = "\n\n".join(
             f"[Source {i + 1} - {h['section']}]\n{h['text']}" for i, h in enumerate(hits)
         )
+        convo = f"CONVERSATION SO FAR:\n{history}\n\n" if history else ""
         return (
             "Answer the QUESTION. First use the CONTEXT below (a personal knowledge "
             "base / CV). If the context contains the answer, answer from it and cite "
             "[Source N]. If the context does NOT contain the answer, then answer from "
-            "your own general knowledge and begin with 'From general knowledge:'.\n\n"
-            f"CONTEXT:\n{context}\n\nQUESTION: {query}\n\nANSWER:"
+            "your own general knowledge and begin with 'From general knowledge:'. "
+            "Use the CONVERSATION SO FAR to resolve references to earlier turns.\n\n"
+            f"CONTEXT:\n{context}\n\n{convo}QUESTION: {query}\n\nANSWER:"
         )
 
+    @staticmethod
+    def _model_prompt(query: str, history: str = "") -> str:
+        """Plain (non-KB) prompt that still carries prior turns for memory."""
+        if not history:
+            return query
+        return f"{history}\nUser: {query}\nAssistant:"
+
     async def route(self, query: str, k: int | None = None) -> tuple[list[dict], bool, float]:
-        """Retrieve, then decide: KB-relevant (use_rag) or fall back to the model."""
-        hits = await self.retrieve(query, k)
+        """Retrieve, then decide: KB-relevant (use_rag) or fall back to the model.
+
+        The KB search is bounded by rag_timeout_seconds. If retrieval takes
+        longer (slow embeddings, cold index), we give up on RAG and let the
+        caller answer straight from the model.
+        """
+        try:
+            hits = await asyncio.wait_for(
+                self.retrieve(query, k), timeout=settings.rag_timeout_seconds
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "RAG search exceeded %.0fs — falling back to model",
+                settings.rag_timeout_seconds,
+            )
+            return [], False, 0.0
         top = hits[0]["score"] if hits else 0.0
         return hits, top >= settings.rag_min_score, top
 
-    async def smart_answer(self, query: str, k: int | None = None) -> dict:
+    async def smart_answer(self, query: str, k: int | None = None, history: str = "") -> dict:
         hits, use_rag, top = await self.route(query, k)
-        prompt = self._hybrid_prompt(query, hits) if use_rag else query
+        prompt = (
+            self._hybrid_prompt(query, hits, history)
+            if use_rag else self._model_prompt(query, history)
+        )
         result = await self._llm.complete(
             model=settings.default_model, prompt=prompt, temperature=0.2, max_tokens=1024
         )
@@ -199,10 +225,13 @@ class RagService:
             "tokens": result.total_tokens,
         }
 
-    async def smart_stream(self, query: str, k: int | None = None):
+    async def smart_stream(self, query: str, k: int | None = None, history: str = ""):
         """Yield (token, done, meta). meta carries mode + sources (sent once)."""
         hits, use_rag, top = await self.route(query, k)
-        prompt = self._hybrid_prompt(query, hits) if use_rag else query
+        prompt = (
+            self._hybrid_prompt(query, hits, history)
+            if use_rag else self._model_prompt(query, history)
+        )
         meta = {
             "mode": "knowledge_base" if use_rag else "model",
             "top_score": round(top, 4),

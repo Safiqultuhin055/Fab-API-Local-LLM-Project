@@ -44,3 +44,14 @@ async def chat_playground(request: Request) -> Response:
     return _templates.TemplateResponse(
         request, "chat.html", {"default_model": settings.default_model}
     )
+
+
+@router.get("/integrate", response_class=HTMLResponse)
+async def integrate_guide(request: Request) -> Response:
+    """Client integration guide: copy-paste samples for Python/JS/.NET/PHP/Oracle."""
+    base_url = str(request.base_url).rstrip("/")
+    return _templates.TemplateResponse(
+        request,
+        "integrate.html",
+        {"default_model": settings.default_model, "base_url": base_url},
+    )

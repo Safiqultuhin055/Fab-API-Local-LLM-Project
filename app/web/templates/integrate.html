@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Integrate — Local LLM AI Gateway</title>
+<style>
+  :root{
+    --bg:#0a0b14; --panel:#12142099; --panel2:#171a2b; --line:#252a44;
+    --txt:#e7e9f5; --mut:#9aa0c3; --brand1:#2563eb; --brand2:#7c3aed;
+    --code-bg:#0c0e18; --ok:#10a37f; --warn:#f5a623; --pill:#1c2140;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:
+      radial-gradient(1200px 600px at 15% -10%, #1b2b6b33, transparent),
+      radial-gradient(1000px 500px at 100% 0%, #6d28d933, transparent),
+      var(--bg);
+    color:var(--txt);font:15px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  a{color:#8ab4ff;text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px}
+  header.top{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+  .logo{width:38px;height:38px;border-radius:10px;
+    background:linear-gradient(135deg,var(--brand1),var(--brand2));
+    display:grid;place-items:center;font-size:20px}
+  h1{font-size:26px;margin:0}
+  .sub{color:var(--mut);margin:2px 0 22px}
+  .nav{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+  .nav a{background:var(--pill);border:1px solid var(--line);padding:6px 12px;
+    border-radius:999px;color:var(--txt);font-size:13px}
+  .card{background:var(--panel);backdrop-filter:blur(6px);border:1px solid var(--line);
+    border-radius:16px;padding:20px 22px;margin-bottom:22px}
+  h2{font-size:19px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  h3{font-size:15px;color:var(--mut);margin:18px 0 8px;text-transform:uppercase;letter-spacing:.04em}
+  code.inline{background:var(--pill);padding:2px 7px;border-radius:6px;font-size:13px;
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+  table{width:100%;border-collapse:collapse;margin:6px 0}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+  th{color:var(--mut);font-weight:600}
+  .method{font-weight:700;color:#7dd3fc}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:0}
+  .tab{background:var(--pill);border:1px solid var(--line);border-bottom:none;
+    padding:8px 14px;border-radius:10px 10px 0 0;cursor:pointer;font-size:13px;color:var(--mut)}
+  .tab.active{background:var(--code-bg);color:var(--txt);border-color:var(--line)}
+  .panes{border:1px solid var(--line);border-radius:0 12px 12px 12px;background:var(--code-bg);overflow:hidden}
+  pre{margin:0;padding:18px 20px;overflow:auto;font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;
+    color:#d7dcf5;max-height:560px}
+  .pane{display:none}
+  .pane.active{display:block}
+  .copy{position:absolute;top:10px;right:12px;background:#1e2340;border:1px solid var(--line);
+    color:var(--mut);border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer}
+  .copy:hover{color:var(--txt)}
+  .codebox{position:relative}
+  .note{background:#1a1d33;border-left:3px solid var(--brand2);padding:10px 14px;border-radius:6px;
+    color:var(--mut);font-size:13px;margin:12px 0}
+  .k{color:#c792ea}.s{color:#c3e88d}.c{color:#5f6787;font-style:italic}.n{color:#f78c6c}.f{color:#82aaff}
+  .cfg{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px}
+  .cfg label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
+  .cfg input{background:var(--code-bg);border:1px solid var(--line);color:var(--txt);
+    border-radius:8px;padding:8px 10px;min-width:260px;font-family:ui-monospace,monospace;font-size:13px}
+  footer{color:var(--mut);font-size:13px;text-align:center;margin-top:40px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">⚡</div>
+    <div>
+      <h1>Integrate the AI Gateway</h1>
+      <div class="sub">Call your self-hosted LLM from any stack — one REST endpoint, one API key.</div>
+    </div>
+  </header>
+
+  <div class="nav">
+    <a href="/docs">Swagger /docs</a>
+    <a href="/chat">Chat Playground</a>
+    <a href="/admin/ui">Admin Console</a>
+    <a href="#endpoints">Endpoints</a>
+    <a href="#samples">Code samples</a>
+  </div>
+
+  <div class="card">
+    <h2>1 · Basics</h2>
+    <p>Every request carries your key in the <code class="inline">X-API-KEY</code> header. Create a key in the
+      <a href="/admin/ui">Admin Console</a>. Base URL and default model shown below — edit them to fill the samples.</p>
+    <div class="cfg">
+      <div><label>Base URL</label><input id="baseUrl" value="{{ base_url }}"></div>
+      <div><label>API key (X-API-KEY)</label><input id="apiKey" value="AI-your-key-here"></div>
+      <div><label>Model</label><input id="model" value="{{ default_model }}"></div>
+    </div>
+    <div class="note">Values above are injected live into every code sample. Nothing is sent anywhere — pure string replace in your browser.</div>
+  </div>
+
+  <div class="card" id="endpoints">
+    <h2>2 · Endpoints</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Body</th><th>Purpose</th></tr>
+      <tr><td class="method">POST</td><td><code class="inline">/v1/chat</code></td><td>{model, prompt, temperature?, max_tokens?, stream:false, images?}</td><td>Chat completion (JSON)</td></tr>
+      <tr><td class="method">POST</td><td><code class="inline">/v1/chat/stream</code></td><td>same, stream:true</td><td>Streaming tokens (SSE)</td></tr>
+      <tr><td class="method">POST</td><td><code class="inline">/v1/rag/smart</code></td><td>{prompt, top_k?}</td><td>KB-first, model fallback</td></tr>
+      <tr><td class="method">GET</td><td><code class="inline">/v1/models</code></td><td>—</td><td>List models + default</td></tr>
+      <tr><td class="method">GET</td><td><code class="inline">/v1/health</code></td><td>—</td><td>Liveness</td></tr>
+    </table>
+    <h3>Response shape (/v1/chat)</h3>
+    <div class="codebox"><pre>{ <span class="s">"success"</span>: true, <span class="s">"response"</span>: <span class="s">"..."</span>, <span class="s">"model"</span>: <span class="s">"..."</span>, <span class="s">"tokens"</span>: 18, <span class="s">"response_time_ms"</span>: 2334, <span class="s">"request_id"</span>: <span class="s">"..."</span> }</pre></div>
+  </div>
+
+  <div class="card" id="samples">
+    <h2>3 · Code samples</h2>
+    <div class="tabs" id="tabs"></div>
+    <div class="panes" id="panes"></div>
+  </div>
+
+  <footer>Local LLM AI Gateway · <a href="/docs">Swagger</a> · <a href="/chat">Playground</a></footer>
+</div>
+
+<script>
+// ---- live config placeholders ----
+const PH = {BASE:'__BASE__', KEY:'__KEY__', MODEL:'__MODEL__'};
+
+// ---- samples: each value uses PH tokens, replaced live ----
+const SAMPLES = {
+'cURL': `curl -X POST __BASE__/v1/chat \\
+  -H "X-API-KEY: __KEY__" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"__MODEL__","prompt":"Write an Oracle SQL query","stream":false}'`,
+
+'Python': `import requests
+
+BASE  = "__BASE__"
+KEY   = "__KEY__"
+MODEL = "__MODEL__"
+
+def chat(prompt: str) -> str:
+    r = requests.post(
+        f"{BASE}/v1/chat",
+        headers={"X-API-KEY": KEY},
+        json={"model": MODEL, "prompt": prompt, "stream": False},
+        timeout=120,
+    )
+    r.raise_for_status()
+    return r.json()["response"]
+
+print(chat("Explain RAG in one line"))`,
+
+'Python SDK': `# Reusable thin client ("SDK") — drop into your package
+import requests
+
+class GatewayClient:
+    def __init__(self, base, key, model, timeout=120):
+        self.base, self.model, self.timeout = base.rstrip("/"), model, timeout
+        self.s = requests.Session()
+        self.s.headers["X-API-KEY"] = key
+
+    def chat(self, prompt, **opts):
+        body = {"model": self.model, "prompt": prompt, "stream": False, **opts}
+        r = self.s.post(f"{self.base}/v1/chat", json=body, timeout=self.timeout)
+        r.raise_for_status()
+        return r.json()["response"]
+
+    def rag(self, prompt, top_k=None):
+        body = {"prompt": prompt}
+        if top_k: body["top_k"] = top_k
+        r = self.s.post(f"{self.base}/v1/rag/smart", json=body, timeout=self.timeout)
+        r.raise_for_status()
+        return r.json()
+
+ai = GatewayClient("__BASE__", "__KEY__", "__MODEL__")
+print(ai.chat("Hello"))`,
+
+'JavaScript': `// Browser / Node 18+ (global fetch)
+const BASE = "__BASE__", KEY = "__KEY__", MODEL = "__MODEL__";
+
+async function chat(prompt) {
+  const r = await fetch(\`\${BASE}/v1/chat\`, {
+    method: "POST",
+    headers: { "X-API-KEY": KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: MODEL, prompt, stream: false }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return (await r.json()).response;
+}
+
+chat("Hello from JS").then(console.log);`,
+
+'JS Streaming (SSE)': `// Stream tokens as they arrive
+const BASE = "__BASE__", KEY = "__KEY__", MODEL = "__MODEL__";
+
+async function stream(prompt, onToken) {
+  const r = await fetch(\`\${BASE}/v1/chat/stream\`, {
+    method: "POST",
+    headers: { "X-API-KEY": KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: MODEL, prompt, stream: true }),
+  });
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    for (const line of buf.split("\\n")) {
+      const s = line.trim();
+      if (s.startsWith("data:")) onToken(s.slice(5).trim());
+    }
+    buf = buf.slice(buf.lastIndexOf("\\n") + 1);
+  }
+}
+stream("Count to 5", t => process.stdout.write(t));`,
+
+'.NET Core': `// .NET 6/7/8 — HttpClient (top-level program)
+using System.Net.Http.Json;
+
+var http = new HttpClient { BaseAddress = new Uri("__BASE__") };
+http.DefaultRequestHeaders.Add("X-API-KEY", "__KEY__");
+
+var req = new { model = "__MODEL__", prompt = "Hello from .NET", stream = false };
+var resp = await http.PostAsJsonAsync("/v1/chat", req);
+resp.EnsureSuccessStatusCode();
+
+var data = await resp.Content.ReadFromJsonAsync<ChatResp>();
+Console.WriteLine(data!.response);
+
+record ChatResp(bool success, string response, string model, int tokens);`,
+
+'.NET MVC': `// ASP.NET Core MVC — typed client via IHttpClientFactory
+// Program.cs:
+//   builder.Services.AddHttpClient("gw", c => {
+//       c.BaseAddress = new Uri("__BASE__");
+//       c.DefaultRequestHeaders.Add("X-API-KEY", "__KEY__");
+//   });
+
+public class AiController : Controller
+{
+    private readonly IHttpClientFactory _f;
+    public AiController(IHttpClientFactory f) => _f = f;
+
+    [HttpPost]
+    public async Task<IActionResult> Ask(string prompt)
+    {
+        var http = _f.CreateClient("gw");
+        var req  = new { model = "__MODEL__", prompt, stream = false };
+        var resp = await http.PostAsJsonAsync("/v1/chat", req);
+        resp.EnsureSuccessStatusCode();
+        var data = await resp.Content.ReadFromJsonAsync<ChatResp>();
+        return Json(new { answer = data!.response });
+    }
+    public record ChatResp(bool success, string response, int tokens);
+}`,
+
+'PHP': `<?php
+// Plain cURL (no deps)
+$base  = "__BASE__";
+$key   = "__KEY__";
+$model = "__MODEL__";
+
+$ch = curl_init("$base/v1/chat");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_HTTPHEADER => ["X-API-KEY: $key", "Content-Type: application/json"],
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => json_encode([
+        "model"  => $model,
+        "prompt" => "Hello from PHP",
+        "stream" => false,
+    ]),
+]);
+$out = json_decode(curl_exec($ch), true);
+curl_close($ch);
+echo $out["response"];
+// Laravel: Http::withHeaders(['X-API-KEY'=>$key])->post("$base/v1/chat", [...])->json();`,
+
+'Oracle APEX': `-- APEX_WEB_SERVICE (PL/SQL). Needs an ACL to the gateway host + wallet if HTTPS.
+DECLARE
+  l_response CLOB;
+  l_body     CLOB;
+BEGIN
+  apex_web_service.g_request_headers.DELETE;
+  apex_web_service.g_request_headers(1).name  := 'X-API-KEY';
+  apex_web_service.g_request_headers(1).value := '__KEY__';
+  apex_web_service.g_request_headers(2).name  := 'Content-Type';
+  apex_web_service.g_request_headers(2).value := 'application/json';
+
+  l_body := '{"model":"__MODEL__","prompt":"Summarize this ticket","stream":false}';
+
+  l_response := apex_web_service.make_rest_request(
+                  p_url         => '__BASE__/v1/chat',
+                  p_http_method => 'POST',
+                  p_body        => l_body);
+
+  -- Pull the answer out with JSON_VALUE
+  DBMS_OUTPUT.put_line( JSON_VALUE(l_response, '$.response') );
+END;
+/`,
+
+'Oracle ADF': `// Oracle ADF / plain Java (JDK 11+) — java.net.http.HttpClient
+import java.net.URI;
+import java.net.http.*;
+
+public class GatewayClient {
+    static final String BASE = "__BASE__";
+    static final String KEY  = "__KEY__";
+    static final String MODEL= "__MODEL__";
+
+    public static String chat(String prompt) throws Exception {
+        String body = String.format(
+            "{\\"model\\":\\"%s\\",\\"prompt\\":\\"%s\\",\\"stream\\":false}",
+            MODEL, prompt);
+
+        HttpRequest req = HttpRequest.newBuilder(URI.create(BASE + "/v1/chat"))
+            .header("X-API-KEY", KEY)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build();
+
+        HttpResponse<String> r = HttpClient.newHttpClient()
+            .send(req, HttpResponse.BodyHandlers.ofString());
+        return r.body();   // parse with your JSON lib (Jackson / JSONObject)
+    }
+    // In an ADF managed bean, call chat(...) from an action listener and
+    // bind the result to an af:outputText via a bound attribute.
+}`,
+};
+
+// ---- render ----
+const tabsEl = document.getElementById('tabs');
+const panesEl = document.getElementById('panes');
+const names = Object.keys(SAMPLES);
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function cfg(){return {
+  BASE:(document.getElementById('baseUrl').value||'').replace(/\/$/,''),
+  KEY:document.getElementById('apiKey').value||'',
+  MODEL:document.getElementById('model').value||'',
+};}
+
+function fill(tpl){const c=cfg();return tpl
+  .split(PH.BASE).join(c.BASE)
+  .split(PH.KEY).join(c.KEY)
+  .split(PH.MODEL).join(c.MODEL);}
+
+names.forEach((n,i)=>{
+  const t=document.createElement('div');
+  t.className='tab'+(i===0?' active':'');t.textContent=n;t.dataset.i=i;
+  tabsEl.appendChild(t);
+  const p=document.createElement('div');
+  p.className='pane'+(i===0?' active':'');p.dataset.i=i;
+  p.innerHTML=`<div class="codebox"><button class="copy">Copy</button><pre></pre></div>`;
+  panesEl.appendChild(p);
+});
+
+function refresh(){
+  document.querySelectorAll('.pane').forEach(p=>{
+    p.querySelector('pre').innerHTML=esc(fill(SAMPLES[names[p.dataset.i]]));
+  });
+}
+tabsEl.addEventListener('click',e=>{
+  const t=e.target.closest('.tab');if(!t)return;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.pane').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.querySelector(`.pane[data-i="${t.dataset.i}"]`).classList.add('active');
+});
+panesEl.addEventListener('click',e=>{
+  const b=e.target.closest('.copy');if(!b)return;
+  const code=b.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1200);});
+});
+['baseUrl','apiKey','model'].forEach(id=>document.getElementById(id).addEventListener('input',refresh));
+refresh();
+</script>
+</body>
+</html>

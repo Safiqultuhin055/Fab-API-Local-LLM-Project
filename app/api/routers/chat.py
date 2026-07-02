@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 
 from app.api.deps import ApiKeyAuth, DbSession, OllamaDep
 from app.core.errors import APIError, ForbiddenError
+from app.core.history import format_history
 from app.core.logging import request_id_ctx
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services import log_service, settings_service
@@ -24,6 +25,14 @@ router = APIRouter(prefix="/v1", tags=["chat"])
 def _client_meta(request: Request) -> tuple[str | None, str | None]:
     ip = request.client.host if request.client else None
     return ip, request.headers.get("user-agent")
+
+
+def _with_history(body: ChatRequest) -> str:
+    """Prepend prior turns to the prompt so the model remembers context."""
+    hist = format_history(body.history)
+    if not hist:
+        return body.prompt
+    return f"{hist}\nUser: {body.prompt}\nAssistant:"
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -41,7 +50,7 @@ async def chat(
     try:
         result = await ollama.complete(
             model=body.model,
-            prompt=body.prompt,
+            prompt=_with_history(body),
             temperature=body.temperature,
             max_tokens=body.max_tokens,
             images=body.images,
@@ -113,7 +122,7 @@ async def chat_stream(
         try:
             async for token, done in ollama.stream(
                 model=body.model,
-                prompt=body.prompt,
+                prompt=_with_history(body),
                 temperature=body.temperature,
                 max_tokens=body.max_tokens,
                 images=body.images,

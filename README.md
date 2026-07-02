@@ -169,10 +169,18 @@ Reasoning models (e.g. Gemma QAT) supported; timeouts configurable.
 2. A question is embedded, cosine-ranked against chunks, top-k become context.
 3. The LLM answers **only from that context**, citing `[Source N]`.
 
-**Smart routing** (default in the chat UI): every message searches the KB first; if the
-best match clears `RAG_MIN_SCORE` the answer is grounded in the KB, otherwise it
-gracefully **falls back to the model's general knowledge**. Upload docs at runtime via
-the chat **+** menu (→ `POST /v1/rag/documents`).
+**Smart routing** (the *only* path in the chat UI — no manual toggle): every message
+searches the KB first; if the best match clears `RAG_MIN_SCORE` the answer is grounded in
+the KB, otherwise it gracefully **falls back to the model's general knowledge**. The KB
+search is time-boxed by `RAG_TIMEOUT_SECONDS` (default **30s**) — if embedding/retrieval
+runs long (cold index, slow embed model) it abandons RAG and answers straight from the
+model, so the user never waits. Upload docs at runtime via the chat **+** menu
+(→ `POST /v1/rag/documents`).
+
+**Multi-turn chat memory:** the client sends the last ~12 turns of the conversation as
+`history`; the gateway renders them into the prompt (KB, model-fallback, and vision paths
+all carry it) so the assistant remembers earlier context — "what is my name" resolves from
+a prior turn. See [`app/core/history.py`](app/core/history.py).
 
 ---
 
@@ -186,12 +194,21 @@ the chat **+** menu (→ `POST /v1/rag/documents`).
 - **API Keys** — KPIs, search/filter, slide-over create, per-key usage, copy full key, revoke.
 - **Models** — enable/disable, set default. **Logs** — paginated, filtered.
 
-### Chat Playground (`/chat`) — ChatGPT-style, self-contained
+### Chat Playground (`/chat`) — world-class, self-contained
+- **Dual theme** (dark default + light) with a persisted sun/moon toggle; animated aurora
+  backdrop, glassmorphism, custom scrollbars, micro-animations.
+- **Empty-state hero** with a gradient greeting + clickable suggestion chips.
 - Sidebar with chat history (localStorage), model picker, streaming answers with **markdown +
-  code blocks + copy**.
-- **RAG-first by default** with a source badge (📚 knowledge base / 🧠 model / 🖼️ vision).
+  code blocks + copy**, mobile hamburger + slide-in nav.
+- **Fully automatic RAG** (KB-first → model fallback, no toggle) with a source badge
+  (📚 knowledge base / 🧠 model / 🖼️ vision) and **multi-turn memory**.
 - **"+" tools menu:** 📎 add file to Knowledge Base · 🖼️ attach image (Vision) · ➕ new chat.
 - **🎙 Voice-to-text** (Web Speech API, English / বাংলা) — speak, review, then send.
+
+### Integration guide (`/integrate`) — copy-paste client samples
+- Live-configurable Base URL / API key / model, injected into ready-to-run snippets for
+  **cURL · Python · Python SDK · JavaScript · SSE streaming · .NET Core · .NET MVC · PHP ·
+  Oracle APEX · Oracle ADF/Java**. Linked from the admin console's Developer menu.
 
 ---
 
@@ -229,7 +246,7 @@ docker compose up --build      # gateway + redis + nginx (LLM runs on host)
 Key settings (full list in `.env.example`): `LLM_BACKEND`, `DATABASE_URL`,
 `HMAC_SECRET`, `ADMIN_API_KEY`, `ADMIN_USERNAME`/`ADMIN_PASSWORD`, `OLLAMA_BASE_URL`,
 `OPENAI_BASE_URL`, `DEFAULT_MODEL`, `EMBEDDING_MODEL`, `RAG_TOP_K`, `RAG_MIN_SCORE`,
-`RATE_LIMIT_BACKEND`, `CORS_ORIGINS`, `LOG_*`.
+`RAG_TIMEOUT_SECONDS`, `RATE_LIMIT_BACKEND`, `CORS_ORIGINS`, `LOG_*`.
 
 ---
 
@@ -238,13 +255,13 @@ Key settings (full list in `.env.example`): `LLM_BACKEND`, `DATABASE_URL`,
 ```
 app/
   api/routers/   chat · rag · models · health · admin
-  core/          config · logging · security · errors
+  core/          config · logging · security · errors · history (chat memory)
   db/            base (engine/session) · models
   schemas/       pydantic request/response models
   services/      ollama · openai · rag · key · log · ratelimit · settings
   middleware/    correlation-id · security headers
   admin_ui/      Jinja templates (login, dashboard, keys, logs, models)
-  web/           chat playground (templates) + favicon
+  web/           chat playground + integration guide (templates) + favicon
 database/        init_db.sql (SQL Server DDL)
 docker/          Dockerfile · nginx.conf
 rag/             knowledge_base.md

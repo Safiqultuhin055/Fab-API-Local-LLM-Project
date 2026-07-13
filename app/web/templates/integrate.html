@@ -56,8 +56,10 @@
   .k{color:#c792ea}.s{color:#c3e88d}.c{color:#5f6787;font-style:italic}.n{color:#f78c6c}.f{color:#82aaff}
   .cfg{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px}
   .cfg label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
-  .cfg input{background:var(--code-bg);border:1px solid var(--line);color:var(--txt);
+  .cfg input,.cfg select{background:var(--code-bg);border:1px solid var(--line);color:var(--txt);
     border-radius:8px;padding:8px 10px;min-width:260px;font-family:ui-monospace,monospace;font-size:13px}
+  .cfg select{cursor:pointer}
+  .cfg input:focus,.cfg select:focus{outline:none;border-color:var(--brand1)}
   footer{color:var(--mut);font-size:13px;text-align:center;margin-top:40px}
 </style>
 </head>
@@ -81,14 +83,27 @@
 
   <div class="card">
     <h2>1 · Basics</h2>
-    <p>Every request carries your key in the <code class="inline">X-API-KEY</code> header. Create a key in the
-      <a href="/admin/ui">Admin Console</a>. Base URL and default model shown below — edit them to fill the samples.</p>
+    <p>Every request authenticates with your key in the <code class="inline">X-API-KEY</code> header and targets one
+      REST endpoint. Create a key in the <a href="/admin/ui">Admin Console</a>, pick a model below, and copy a
+      snippet — the samples are pre-filled and production-shaped (timeouts, error checks, reusable clients).</p>
     <div class="cfg">
       <div><label>Base URL</label><input id="baseUrl" value="{{ base_url }}"></div>
       <div><label>API key (X-API-KEY)</label><input id="apiKey" value="AI-your-key-here"></div>
-      <div><label>Model</label><input id="model" value="{{ default_model }}"></div>
+      <div><label>Model</label>
+        {% if models %}
+        <select id="model">
+          {% for m in models %}
+          <option value="{{ m }}"{% if m == default_model %} selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input id="model" value="{{ default_model }}">
+        {% endif %}
+      </div>
     </div>
-    <div class="note">Values above are injected live into every code sample. Nothing is sent anywhere — pure string replace in your browser.</div>
+    <div class="note">Live model list pulled from your gateway. Cloud models (<code class="inline">…-cloud</code>) run
+      hosted — no local download, but the first token can take a few seconds, so keep client timeouts generous
+      (samples use 120&nbsp;s). Values here are injected into every snippet in your browser only; nothing is sent anywhere.</div>
   </div>
 
   <div class="card" id="endpoints">
@@ -366,7 +381,11 @@ panesEl.addEventListener('click',e=>{
   const code=b.parentElement.querySelector('pre').innerText;
   navigator.clipboard.writeText(code).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1200);});
 });
-['baseUrl','apiKey','model'].forEach(id=>document.getElementById(id).addEventListener('input',refresh));
+['baseUrl','apiKey','model'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('input',refresh);
+  el.addEventListener('change',refresh); // <select> fires change
+});
 refresh();
 </script>
 </body>

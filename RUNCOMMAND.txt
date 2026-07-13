@@ -25,10 +25,10 @@ copy .env.example .env
 
 
 # --- 3. RUN the gateway (dev) --- PowerShell ---
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8009 --reload
 
-#   Swagger UI:   http://localhost:8000/docs
-#   Health:       http://localhost:8000/v1/health
+#   Swagger UI:   http://localhost:8009/docs
+#   Health:       http://localhost:8009/v1/health
 
 
 # --- 4. RUN with Docker (gateway + redis + nginx) ---
@@ -38,11 +38,11 @@ docker compose up --build
 
 # --- 5. Quick test ---
 # Create an API key (admin):
-#   curl -X POST http://localhost:8000/admin/api-keys -H "X-ADMIN-KEY: <ADMIN_API_KEY>" -H "Content-Type: application/json" -d "{\"owner_name\":\"My Project\",\"tier\":\"free\",\"rate_limit\":1000}"
+#   curl -X POST http://localhost:8009/admin/api-keys -H "X-ADMIN-KEY: <ADMIN_API_KEY>" -H "Content-Type: application/json" -d "{\"owner_name\":\"My Project\",\"tier\":\"free\",\"rate_limit\":1000}"
 # Chat:
-#   curl -X POST http://localhost:8000/v1/chat -H "X-API-KEY: AI-..." -H "Content-Type: application/json" -d "{\"model\":\"llama3.1\",\"prompt\":\"Hello\",\"stream\":false}"
+#   curl -X POST http://localhost:8009/v1/chat -H "X-API-KEY: AI-..." -H "Content-Type: application/json" -d "{\"model\":\"llama3.1\",\"prompt\":\"Hello\",\"stream\":false}"
 ============================================================
 
 
 # --- RUN (copy-paste) ---
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8009 --reload

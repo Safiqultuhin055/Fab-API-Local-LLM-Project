@@ -50,8 +50,31 @@ async def chat_playground(request: Request) -> Response:
 async def integrate_guide(request: Request) -> Response:
     """Client integration guide: copy-paste samples for Python/JS/.NET/PHP/Oracle."""
     base_url = str(request.base_url).rstrip("/")
+
+    # Live model list so the sample config offers a real dropdown, not a guess.
+    # Best-effort: if Ollama is down the page still renders with the config default.
+    try:
+        installed = await request.app.state.ollama.list_models()
+        models = [m.get("name") for m in installed if m.get("name")]
+    except Exception:
+        models = []
+
+    # Prefer the fastest hosted "cloud" model as the sample default so copy-paste
+    # snippets work without a multi-GB local pull; fall back to the config default.
+    preferred = next(
+        (m for m in models if m.endswith("-cloud") or m.endswith(":cloud")),
+        None,
+    )
+    default_model = preferred or settings.default_model
+    if default_model not in models:
+        models = [default_model, *models]
+
     return _templates.TemplateResponse(
         request,
         "integrate.html",
-        {"default_model": settings.default_model, "base_url": base_url},
+        {
+            "default_model": default_model,
+            "base_url": base_url,
+            "models": models,
+        },
     )

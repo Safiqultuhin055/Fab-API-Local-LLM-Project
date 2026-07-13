@@ -1,0 +1,24 @@
+# Build context hygiene: keep secrets, local DBs, and dev cruft out of the image.
+.venv
+venv
+**/__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+ai_gateway.db
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.md
+!rag/knowledge_base.md
+*.png
+*.log
+.vscode
+.idea

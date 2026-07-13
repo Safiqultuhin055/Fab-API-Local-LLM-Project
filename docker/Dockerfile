@@ -26,6 +26,9 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY app ./app
+# RAG knowledge base is read AND appended to at runtime (POST /v1/rag/*).
+# Baked in as a default; bind-mount ./rag in compose to persist writes.
+COPY rag ./rag
 
 EXPOSE 8000
 

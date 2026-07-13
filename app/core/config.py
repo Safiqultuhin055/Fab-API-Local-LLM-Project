@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # local SQLite database_url above. Needs ODBC Driver 18 + aioodbc installed.
     mssql_host: str = ""                 # e.g. 192.168.153.248 (empty = disabled)
     mssql_port: int = 1433
-    mssql_database: str = "EasyHishabIMDB"
+    mssql_database: str = "ai_gateway"
     mssql_user: str = "sa"
     mssql_password: str = ""
     mssql_driver: str = "ODBC Driver 18 for SQL Server"

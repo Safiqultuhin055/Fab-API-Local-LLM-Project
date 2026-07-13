@@ -109,6 +109,34 @@ class RequestLog(TimestampMixin, Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class User(TimestampMixin, Base):
+    """Admin console login account. Passwords are stored hashed, never plaintext."""
+    __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("username", name="uq_users_username"),
+        Index("ix_users_status", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(100), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    role: Mapped[str] = mapped_column(
+        String(20), default="admin", nullable=False
+    )  # admin | viewer
+    status: Mapped[str] = mapped_column(
+        String(20), default="active", nullable=False
+    )  # active | disabled
+    last_login: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    @property
+    def is_active(self) -> bool:
+        return not self.is_deleted and self.status == "active"
+
+
 class Setting(TimestampMixin, Base):
     __tablename__ = "settings"
     __table_args__ = (UniqueConstraint("setting_key", name="uq_settings_key"),)

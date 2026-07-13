@@ -145,10 +145,31 @@
     .cursor::after{content:'';display:inline-block;width:8px;height:16px;margin-left:3px;border-radius:2px;
       background:var(--accent);vertical-align:text-bottom;animation:blink 1s steps(2) infinite}
     @keyframes blink{50%{opacity:.15}}
-    .meta{color:var(--muted);font-size:12px;margin:10px 0 0 47px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .meta{color:var(--muted);font-size:12px;margin:10px 0 0 47px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .meta button{border:1px solid var(--line);background:var(--surface);cursor:pointer;color:var(--ink-2);font-size:12px;
       padding:4px 10px;border-radius:8px;transition:.14s}
     .meta button:hover{color:var(--ink);border-color:var(--ring)}
+    .meta .dot-sep{color:var(--line);font-weight:700}
+    /* source badge (KB / model / vision) */
+    .mbadge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+      padding:3px 10px;border-radius:999px;border:1px solid transparent;line-height:1.4}
+    .mbadge.kb{color:var(--green);border-color:color-mix(in srgb,var(--green) 32%,transparent);
+      background:color-mix(in srgb,var(--green) 13%,transparent)}
+    .mbadge.model{color:var(--accent);border-color:color-mix(in srgb,var(--brand1) 32%,transparent);
+      background:color-mix(in srgb,var(--brand1) 12%,transparent)}
+    .mbadge.vision{color:var(--violet);border-color:color-mix(in srgb,var(--violet) 32%,transparent);
+      background:color-mix(in srgb,var(--violet) 13%,transparent)}
+    /* confidence meter */
+    .conf{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+    .conf .bar{width:52px;height:5px;border-radius:99px;background:color-mix(in srgb,var(--ink) 12%,transparent);overflow:hidden}
+    .conf .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--green),var(--brand3))}
+    /* KB source chips */
+    .srcs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0 47px;align-items:center}
+    .srcs .lbl{font-size:11px;color:var(--muted);font-weight:600}
+    .src{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 9px;border-radius:999px;
+      border:1px solid var(--line);background:var(--surface);color:var(--ink-2);transition:.14s}
+    .src:hover{border-color:var(--ring);color:var(--ink)}
+    .src .sc{color:var(--muted);font-variant-numeric:tabular-nums;font-size:10px}
 
     /* ============ Composer ============ */
     .composer{position:absolute;left:0;right:0;bottom:0;padding:0 22px 22px;
@@ -521,9 +542,47 @@ function applyUser(){const n=LS.name||'Local User';$('#uname').textContent=n;$('
 async function loadModels(){
   if(!LS.k)return;
   try{const r=await fetch('/v1/models',{headers:{'X-API-KEY':LS.k}});if(!r.ok)return;
-    const d=await r.json();const names=(d.models||[]).map(m=>m.name).filter(Boolean);
-    if(names.length)modelSel.innerHTML=names.map(n=>`<option ${n===d.default_model?'selected':''}>${n}</option>`).join('');
+    const d=await r.json();
+    // Embedding models can't answer chat — hide them from the picker.
+    const names=(d.models||[]).map(m=>m.name).filter(Boolean).filter(n=>!/embed/i.test(n));
+    if(!names.length)return;
+    // Default = server default when it's a real chat model, else first chat model.
+    let def=d.default_model;
+    if(!def||/embed/i.test(def)||!names.includes(def))def=names[0];
+    modelSel.innerHTML=names.map(n=>`<option ${n===def?'selected':''}>${n}</option>`).join('');
   }catch(e){}
+}
+
+/* ---------- result footer: source badge + confidence + KB sources ---------- */
+function renderResultMeta(body,answer,mode,metaData,secs){
+  const wrap=body.parentElement.parentElement;
+  const meta=document.createElement('div');meta.className='meta';
+  const BADGE={
+    knowledge_base:{cls:'kb',ic:'📚',txt:'Knowledge base'},
+    model:{cls:'model',ic:'🧠',txt:'Model'},
+    vision:{cls:'vision',ic:'🖼️',txt:'Vision'},
+  };
+  const b=BADGE[mode];
+  if(b)meta.innerHTML+=`<span class="mbadge ${b.cls}">${b.ic} ${b.txt}</span>`;
+  // confidence meter — only meaningful for KB matches
+  if(mode==='knowledge_base'&&metaData&&typeof metaData.top_score==='number'){
+    const pct=Math.max(0,Math.min(100,Math.round(metaData.top_score*100)));
+    meta.innerHTML+=`<span class="conf" title="Best KB match score (cosine similarity)">
+      <span class="bar"><i style="width:${pct}%"></i></span>${pct}% match</span>`;
+  }
+  meta.innerHTML+=`<span class="dot-sep">·</span><span>${esc(modelSel.value)} · ${secs}s</span>`;
+  const copy=document.createElement('button');copy.textContent='⧉ Copy';copy.onclick=()=>copyText(answer,copy);
+  meta.appendChild(copy);
+  wrap.after(meta);
+  // KB source chips (which sections grounded the answer)
+  const srcs=(metaData&&metaData.sources)||[];
+  if(mode==='knowledge_base'&&srcs.length){
+    const row=document.createElement('div');row.className='srcs';
+    row.innerHTML='<span class="lbl">Sources</span>'+srcs.map(s=>
+      `<span class="src" title="match ${(s.score*100).toFixed(0)}%">${esc(s.section||'General')}<span class="sc">${(s.score*100).toFixed(0)}%</span></span>`
+    ).join('');
+    meta.after(row);
+  }
 }
 
 /* ---------- send + stream ---------- */
@@ -557,7 +616,7 @@ async function send(){
     const reqBody={model:modelSel.value,prompt:text,temperature:0.3};
     if(history.length)reqBody.history=history;
     if(img)reqBody.images=[img];
-    let answerMode=img?'vision':null;
+    let answerMode=img?'vision':null,answerMeta=null;
     if(img){pendingImage=null;$('#imgchip').style.display='none';input.placeholder='Ask anything';}
     const resp=await fetch(endpoint,{method:'POST',
       headers:{'X-API-KEY':LS.k,'Content-Type':'application/json'},
@@ -569,7 +628,7 @@ async function send(){
       for(const p of parts){const line=p.trim();if(!line.startsWith('data:'))continue;
         const data=line.slice(5).trim();if(data==='[DONE]')continue;
         try{const j=JSON.parse(data);if(j.error)throw new Error(j.error);
-          if(j.meta){answerMode=j.meta.mode;}            // smart route: kb vs model
+          if(j.meta){answerMode=j.meta.mode;answerMeta=j.meta;}   // smart route: kb vs model (+score,sources)
           if(j.token){answer+=j.token;body.innerHTML=renderMd(answer);body.classList.add('cursor');scroll.scrollTop=scroll.scrollHeight}
         }catch(err){if(err.message&&err.message!=='Unexpected end of JSON input')throw err}
       }
@@ -577,14 +636,7 @@ async function send(){
     body.classList.remove('cursor');body.innerHTML=renderMd(answer);
     updateLastAssistant(answer);
     const secs=((performance.now()-t0)/1000).toFixed(1);
-    const meta=document.createElement('div');meta.className='meta';
-    const badge=answerMode==='knowledge_base'
-      ? '<span style="color:var(--green)">📚 from knowledge base</span> · '
-      : answerMode==='vision' ? '<span style="color:var(--violet)">🖼️ vision</span> · '
-      : (answerMode==='model' ? '<span style="color:var(--accent)">🧠 from model</span> · ' : '');
-    meta.innerHTML=`${badge}<span>${modelSel.value} · ${secs}s</span>`;
-    const copy=document.createElement('button');copy.textContent='⧉ Copy';copy.onclick=()=>copyText(answer,copy);
-    meta.appendChild(copy);body.parentElement.parentElement.after(meta);
+    renderResultMeta(body,answer,answerMode,answerMeta,secs);
   }catch(e){body.classList.remove('cursor');showErr('Error: '+e.message);
     if(!answer){body.innerHTML='<p style="color:var(--red)">⚠ '+esc(e.message)+'</p>'}updateLastAssistant(answer)}
   finally{streaming=false;sendBtn.disabled=false;input.focus();renderRecents()}

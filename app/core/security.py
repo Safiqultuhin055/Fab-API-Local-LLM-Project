@@ -68,24 +68,55 @@ def decrypt_secret(token: str | None) -> str | None:
         return None
 
 
-# --- Password hashing (Argon2id) — used by enterprise track ---
-try:
+# --- Password hashing — Argon2id when available, PBKDF2-HMAC-SHA256 fallback.
+# Verification dispatches on the stored hash's scheme prefix, so hashes created
+# without argon2 (e.g. a lean local venv) still verify anywhere, and vice-versa.
+_PBKDF2_ITERATIONS = 240_000
+
+try:  # argon2-cffi is in requirements.txt; may be absent in a minimal venv.
     from argon2 import PasswordHasher
     from argon2.exceptions import VerifyMismatchError
 
     _ph = PasswordHasher()
+    _HAS_ARGON2 = True
+except ImportError:
+    _ph = None
+    _HAS_ARGON2 = False
 
-    def hash_password(plain: str) -> str:
-        return _ph.hash(plain)
 
-    def verify_password(plain: str, stored: str) -> bool:
+def _pbkdf2_hash(plain: str) -> str:
+    salt = secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac("sha256", plain.encode("utf-8"), salt, _PBKDF2_ITERATIONS)
+    return f"pbkdf2_sha256${_PBKDF2_ITERATIONS}${salt.hex()}${dk.hex()}"
+
+
+def _pbkdf2_verify(plain: str, stored: str) -> bool:
+    try:
+        _, iters, salt_hex, hash_hex = stored.split("$")
+        dk = hashlib.pbkdf2_hmac(
+            "sha256", plain.encode("utf-8"), bytes.fromhex(salt_hex), int(iters)
+        )
+        return hmac.compare_digest(dk.hex(), hash_hex)
+    except (ValueError, TypeError):
+        return False
+
+
+def hash_password(plain: str) -> str:
+    """Hash a plaintext password. Argon2id if installed, else PBKDF2-HMAC-SHA256."""
+    return _ph.hash(plain) if _HAS_ARGON2 else _pbkdf2_hash(plain)
+
+
+def verify_password(plain: str, stored: str) -> bool:
+    """Constant-time verify, dispatching on the stored hash's scheme prefix."""
+    if stored.startswith("$argon2"):
+        if not _HAS_ARGON2:
+            return False
         try:
             return _ph.verify(stored, plain)
         except VerifyMismatchError:
             return False
-except ImportError:  # argon2 optional at prototype stage
-    def hash_password(plain: str) -> str:  # type: ignore[misc]
-        raise RuntimeError("argon2-cffi not installed")
-
-    def verify_password(plain: str, stored: str) -> bool:  # type: ignore[misc]
-        raise RuntimeError("argon2-cffi not installed")
+        except Exception:
+            return False
+    if stored.startswith("pbkdf2_sha256$"):
+        return _pbkdf2_verify(plain, stored)
+    return False

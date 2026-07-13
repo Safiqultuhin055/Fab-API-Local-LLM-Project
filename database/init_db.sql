@@ -100,3 +100,33 @@ CREATE TABLE dbo.settings (
     CONSTRAINT uq_settings_key UNIQUE (setting_key)
 );
 GO
+
+/* ---------- users ----------
+   Admin-console login accounts. Passwords are stored hashed (Argon2id, or a
+   PBKDF2-HMAC-SHA256 fallback) — NEVER plaintext. Seeded with the .env admin
+   by scripts/migrate_seed.py; the .env credentials also work as a recovery
+   login if this table is empty. */
+IF OBJECT_ID('dbo.users', 'U') IS NULL
+CREATE TABLE dbo.users (
+    id            INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    username      NVARCHAR(100) NOT NULL,
+    password_hash NVARCHAR(255) NOT NULL,       -- hashed; never plaintext
+    full_name     NVARCHAR(200) NULL,
+    email         NVARCHAR(200) NULL,
+    role          NVARCHAR(20)  NOT NULL CONSTRAINT DF_users_role   DEFAULT('admin'),
+    status        NVARCHAR(20)  NOT NULL CONSTRAINT DF_users_status DEFAULT('active'),
+    last_login    DATETIMEOFFSET NULL,
+    created_date  DATETIMEOFFSET NOT NULL CONSTRAINT DF_users_cd DEFAULT(SYSDATETIMEOFFSET()),
+    updated_date  DATETIMEOFFSET NOT NULL CONSTRAINT DF_users_ud DEFAULT(SYSDATETIMEOFFSET()),
+    created_by    NVARCHAR(100) NULL,
+    updated_by    NVARCHAR(100) NULL,
+    is_deleted    BIT           NOT NULL CONSTRAINT DF_users_del DEFAULT(0),
+    deleted_at    DATETIMEOFFSET NULL,
+    CONSTRAINT uq_users_username UNIQUE (username),
+    CONSTRAINT ck_users_role   CHECK (role   IN ('admin','viewer')),
+    CONSTRAINT ck_users_status CHECK (status IN ('active','disabled'))
+);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_users_status' AND object_id=OBJECT_ID('dbo.users'))
+    CREATE INDEX ix_users_status ON dbo.users(status);
+GO

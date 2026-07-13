@@ -17,12 +17,18 @@ services:
       # If SQL Server runs on the DOCKER HOST instead, set MSSQL_HOST=host.docker.internal.
       MSSQL_HOST: ${MSSQL_HOST:-}
       MSSQL_PORT: ${MSSQL_PORT:-1433}
-      MSSQL_DATABASE: ${MSSQL_DATABASE:-EasyHishabIMDB}
+      MSSQL_DATABASE: ${MSSQL_DATABASE:-ai_gateway}
       MSSQL_USER: ${MSSQL_USER:-sa}
       MSSQL_PASSWORD: ${MSSQL_PASSWORD:-}
       MSSQL_DRIVER: ${MSSQL_DRIVER:-ODBC Driver 18 for SQL Server}
     ports:
-      - "8000:8000"
+      # Host 8009 -> container 8000. Reach the API at http://localhost:8009
+      # (or via nginx on :80). Container-internal port stays 8000.
+      - "8009:8000"
+    volumes:
+      # Persist RAG knowledge-base writes across container restarts. The SQLite
+      # fallback (only used if SQL Server is unreachable) stays container-local.
+      - ./rag:/app/rag
     depends_on:
       - redis
     extra_hosts:

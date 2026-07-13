@@ -17,7 +17,7 @@ from fastapi.templating import Jinja2Templates
 from app.api.deps import DbSession, OllamaDep
 from app.core import security
 from app.core.config import settings
-from app.services import key_service, log_service, settings_service
+from app.services import key_service, log_service, settings_service, user_service
 
 router = APIRouter(prefix="/admin/ui", tags=["admin-ui"], include_in_schema=False)
 
@@ -25,24 +25,30 @@ _templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 _COOKIE = "admin_auth"
 
 
-def _expected_token() -> str:
-    # Deterministic token derived from the credentials; raw values never stored.
-    return security.hash_api_key(
-        f"admin-ui:{settings.admin_username}:{settings.admin_password}"
-    )
+def _session_token(username: str) -> str:
+    # Stateless cookie: "<username>:<mac>" where mac is HMAC(username) under the
+    # server secret. Password is NOT embedded, so a password change never breaks
+    # an existing session and the cookie can't be forged without HMAC_SECRET.
+    mac = security.hash_api_key(f"admin-ui:session:{username}")
+    return f"{username}:{mac}"
 
 
 def _is_authed(request: Request) -> bool:
-    tok = request.cookies.get(_COOKIE)
-    return bool(tok) and hmac.compare_digest(tok, _expected_token())
+    tok = request.cookies.get(_COOKIE) or ""
+    username, _, mac = tok.partition(":")
+    if not username or not mac:
+        return False
+    expected = security.hash_api_key(f"admin-ui:session:{username}")
+    return hmac.compare_digest(mac, expected)
 
 
 def _login_redirect() -> RedirectResponse:
     return RedirectResponse(url="/admin/ui/login", status_code=303)
 
 
-def _check_credentials(username: str, password: str) -> bool:
-    # Constant-time compare of both fields against configured admin credentials.
+def _env_credentials_ok(username: str, password: str) -> bool:
+    # Bootstrap / recovery fallback: the .env admin still works even if the users
+    # table is empty or the DB is unreachable, so the console is never locked out.
     u_ok = hmac.compare_digest(username, settings.admin_username)
     p_ok = hmac.compare_digest(password, settings.admin_password)
     return u_ok and p_ok
@@ -56,17 +62,28 @@ async def login_page(request: Request) -> Response:
 @router.post("/login")
 async def login(
     request: Request,
+    db: DbSession,
     username: Annotated[str, Form()],
     password: Annotated[str, Form()],
 ) -> Response:
-    if not _check_credentials(username, password):
+    # Primary path: authenticate against the users table.
+    ok = False
+    try:
+        ok = await user_service.authenticate(db, username, password) is not None
+    except Exception:
+        ok = False  # DB down -> fall through to env recovery
+    # Recovery path: .env admin credentials always work.
+    if not ok:
+        ok = _env_credentials_ok(username, password)
+
+    if not ok:
         return _templates.TemplateResponse(
             request, "login.html",
             {"error": "Invalid username or password"}, status_code=401,
         )
     resp = RedirectResponse(url="/admin/ui", status_code=303)
     resp.set_cookie(
-        _COOKIE, _expected_token(), httponly=True, samesite="lax",
+        _COOKIE, _session_token(username), httponly=True, samesite="lax",
         secure=settings.is_production, max_age=60 * 60 * 8,
     )
     return resp

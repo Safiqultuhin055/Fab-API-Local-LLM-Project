@@ -8,8 +8,11 @@ services:
       dockerfile: docker/Dockerfile
     env_file: .env
     environment:
-      # Override so the container reaches host-run Ollama.
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      # Container must reach the HOST's Ollama, not its own localhost. Hardcoded
+      # (not ${OLLAMA_BASE_URL:-…}) because compose would otherwise interpolate
+      # the .env value http://localhost:11434, which inside the container points
+      # at the container itself -> empty model list.
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
       RATE_LIMIT_BACKEND: redis
       REDIS_URL: redis://redis:6379/0
       # SQL Server selection (all read from .env; listed for visibility).

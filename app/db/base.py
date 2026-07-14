@@ -33,7 +33,12 @@ def _tcp_reachable(host: str, port: int, timeout: float) -> bool:
 
 
 def resolve_database_url() -> str:
-    """Pick SQL Server if configured + reachable, else the local SQLite URL."""
+    """Pick SQL Server if configured + reachable, else the local SQLite URL.
+
+    If DB_REQUIRE_MSSQL is set, a missing/unreachable SQL Server is a hard error
+    instead of a silent SQLite fallback — so a misconfigured deploy fails fast
+    rather than quietly writing to a throwaway container-local database.
+    """
     mssql = settings.mssql_url
     if mssql:
         if _tcp_reachable(settings.mssql_host, settings.mssql_port, settings.db_probe_timeout):
@@ -42,11 +47,23 @@ def resolve_database_url() -> str:
                 settings.mssql_host, settings.mssql_port, settings.mssql_database,
             )
             return mssql
-        logger.warning(
-            "SQL Server %s:%s unreachable — falling back to local SQLite",
-            settings.mssql_host, settings.mssql_port,
+        msg = (
+            f"SQL Server {settings.mssql_host}:{settings.mssql_port} unreachable"
         )
+        if settings.db_require_mssql:
+            raise RuntimeError(
+                f"{msg} and DB_REQUIRE_MSSQL is set — refusing to start on SQLite. "
+                "Check MSSQL_HOST/PORT/PASSWORD and network reachability from this host."
+            )
+        logger.warning("%s — falling back to local SQLite", msg)
     else:
+        if settings.db_require_mssql:
+            raise RuntimeError(
+                "SQL Server not configured (MSSQL_HOST/MSSQL_PASSWORD empty) but "
+                "DB_REQUIRE_MSSQL is set. In Docker, ensure .env reaches the "
+                "container via env_file and is not overridden by empty "
+                "environment: values."
+            )
         logger.info("DB: local SQLite (SQL Server not configured)")
     return settings.database_url
 

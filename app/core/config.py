@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     mssql_driver: str = "ODBC Driver 18 for SQL Server"
     # Seconds to probe SQL Server before deciding to fall back to SQLite.
     db_probe_timeout: float = 3.0
+    # If true, refuse to start on the SQLite fallback: SQL Server MUST be
+    # configured AND reachable. Set this on the server/Docker deploy so a bad
+    # MSSQL_* config fails loudly instead of silently writing to throwaway SQLite.
+    db_require_mssql: bool = False
 
     # --- Security ---
     hmac_secret: str = "dev-insecure-change-me"

@@ -21,15 +21,13 @@ services:
       OLLAMA_REMOTE_URL: http://host.docker.internal:11434
       RATE_LIMIT_BACKEND: redis
       REDIS_URL: redis://redis:6379/0
-      # SQL Server selection (all read from .env; listed for visibility).
-      # A LAN IP like 192.168.153.248 is reachable from the container as-is.
-      # If SQL Server runs on the DOCKER HOST instead, set MSSQL_HOST=host.docker.internal.
-      MSSQL_HOST: ${MSSQL_HOST:-}
-      MSSQL_PORT: ${MSSQL_PORT:-1433}
-      MSSQL_DATABASE: ${MSSQL_DATABASE:-ai_gateway}
-      MSSQL_USER: ${MSSQL_USER:-sa}
-      MSSQL_PASSWORD: ${MSSQL_PASSWORD:-}
-      MSSQL_DRIVER: ${MSSQL_DRIVER:-ODBC Driver 18 for SQL Server}
+      # NOTE: MSSQL_* are intentionally NOT set here. `environment:` overrides
+      # `env_file:`, and `${MSSQL_HOST:-}` reads the HOST SHELL (unset on the
+      # server) -> injects an EMPTY MSSQL_HOST that blanks the .env value, so the
+      # app thinks SQL Server is "not configured" and silently uses container-
+      # local SQLite. Leaving them out lets env_file (.env) supply them, so the
+      # container writes to the real SQL Server at 192.168.153.248.
+      # (If SQL Server runs on the DOCKER HOST itself, set MSSQL_HOST=host.docker.internal in .env.)
     ports:
       # Host 8009 -> container 8000. Reach the API at http://localhost:8009
       # (or via nginx on :80). Container-internal port stays 8000.

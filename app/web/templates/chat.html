@@ -341,8 +341,6 @@
     <div class="card">
       <h3>Settings</h3>
       <p>Stored only in this browser.</p>
-      <label>Your name</label>
-      <input id="dispname" placeholder="Local User">
       <label>API Key (X-API-KEY)</label>
       <input id="apikey" type="password" placeholder="AI-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
       <div class="row"><button class="btn ghost" id="closeSettings">Cancel</button><button class="btn" id="saveSettings">Save</button></div>
@@ -475,10 +473,10 @@ function drawMsg(role,content){
 }
 
 /* ---------- UI events ---------- */
-$('#settings').onclick=$('#gear2').onclick=()=>{$('#apikey').value=LS.k;$('#dispname').value=LS.name;$('#modal').classList.add('open')};
+$('#settings').onclick=$('#gear2').onclick=()=>{$('#apikey').value=LS.k;$('#modal').classList.add('open')};
 $('#closeSettings').onclick=()=>$('#modal').classList.remove('open');
 $('#modal').onclick=e=>{if(e.target===$('#modal'))$('#modal').classList.remove('open')};
-$('#saveSettings').onclick=()=>{LS.k=$('#apikey').value.trim();LS.name=($('#dispname').value.trim()||'Local User');$('#modal').classList.remove('open');loadModels();applyUser();renderThread();showErr('')};
+$('#saveSettings').onclick=()=>{LS.k=$('#apikey').value.trim();$('#modal').classList.remove('open');loadModels();renderThread();showErr('')};
 function newChat(){LS.active='';renderThread();renderRecents();input.focus()}
 $('#newchat').onclick=newChat;
 $('#themebtn').onclick=toggleTheme;

@@ -7,14 +7,14 @@
 <!-- summary KPIs -->
 <div class="grid kpis" style="margin-bottom:18px">
   {% set kc = [
-    ('Total Keys', summary.total, '#2563eb', 'M4 4h16v16H4z'),
-    ('Active', summary.active, '#16a34a', 'M20 6L9 17l-5-5'),
-    ('Paid Tier', summary.paid, '#7c3aed', 'M12 2l8 4.5v9L12 20l-8-4.5v-9z'),
-    ('Requests Served', summary.requests, '#0891b2', 'M3 3v18h18'),
+    ('Total Keys', 'total', summary.total, '#2563eb', 'M4 4h16v16H4z'),
+    ('Active', 'active', summary.active, '#16a34a', 'M20 6L9 17l-5-5'),
+    ('Paid Tier', 'paid', summary.paid, '#7c3aed', 'M12 2l8 4.5v9L12 20l-8-4.5v-9z'),
+    ('Requests Served', 'requests', summary.requests, '#0891b2', 'M3 3v18h18'),
   ] %}
-  {% for label,value,color,path in kc %}
+  {% for label,skey,value,color,path in kc %}
   <div class="card kpi">
-    <div><div class="label">{{ label }}</div><div class="value">{{ value }}</div></div>
+    <div><div class="label">{{ label }}</div><div class="value" data-kpi="{{ skey }}">{{ value }}</div></div>
     <div class="ic" style="background:linear-gradient(135deg,{{ color }},{{ color }}cc)">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="{{ path }}"/></svg>
     </div>
@@ -40,6 +40,8 @@
   <div class="head">
     <div style="display:flex;align-items:center;gap:12px;flex:1">
       <h3 style="margin:0">All Keys</h3>
+      <span id="livedot" title="Live — synced with the database" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
+        <span style="width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d399;animation:pulse 2s infinite"></span>Live</span>
       <div style="position:relative;margin-left:8px">
         <input id="search" placeholder="Search owner or prefix…" oninput="filterKeys()" style="padding-left:32px;min-width:240px">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#94a3b8" stroke-width="2" style="position:absolute;left:10px;top:11px"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
@@ -121,6 +123,7 @@
   @keyframes slide{from{transform:translateX(40px);opacity:.4}to{transform:none;opacity:1}}
   .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:18px;border-bottom:1px solid var(--line)}
   .drawer-head h3{margin:0}
+  @keyframes pulse{50%{opacity:.35}}
 </style>
 <script>
   function copyText(t, btn){
@@ -136,5 +139,61 @@
     });
     document.getElementById('empty').style.display=shown?'none':'block';
   }
+
+  /* ---------- live sync with the api_keys table (poll every 5s) ---------- */
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  function tierPill(t){
+    if(t==='enterprise')return '<span class="pill" style="background:#ede9fe;color:#6d28d9">enterprise</span>';
+    if(t==='pro')return '<span class="pill" style="background:#dbeafe;color:#1d4ed8">pro</span>';
+    return '<span class="pill neutral">free</span>';
+  }
+  function rowHTML(k){
+    const statusPill=k.status==='active'
+      ?'<span class="pill ok">● active</span>'
+      :`<span class="pill off">● ${esc(k.status)}</span>`;
+    const keyCell=k.full_key
+      ?`<button class="btn ghost sm copykey" data-key="${esc(k.full_key)}" title="Copy full API key" style="padding:3px 7px;margin-left:4px">⧉ Copy key</button>`
+      :`<button class="btn ghost sm copykey" data-key="${esc(k.key_prefix)}" title="Full key not recoverable (legacy key)" style="padding:3px 7px;margin-left:4px;opacity:.5">⧉ prefix</button>`;
+    const errs=k.errors?`<br><span class="muted" style="font-size:11px;color:#b91c1c">${k.errors} errors</span>`:'';
+    return `<tr data-owner="${esc((k.owner_name||'').toLowerCase())}" data-prefix="${esc((k.key_prefix||'').toLowerCase())}" data-tier="${esc(k.tier)}">
+      <td>${k.id}</td>
+      <td><code>${esc(k.key_prefix)}••••••</code>${keyCell}</td>
+      <td><b>${esc(k.owner_name)}</b></td>
+      <td>${statusPill}</td>
+      <td>${tierPill(k.tier)}</td>
+      <td><b>${k.requests}</b> <span class="muted" style="font-size:11px">reqs</span>${errs}</td>
+      <td>${esc(k.rate_limit)}</td>
+      <td class="muted">${esc(k.ip_whitelist)}</td>
+      <td class="muted">${esc(k.last_used)}</td>
+      <td style="text-align:right">
+        <form class="inline" method="post" action="/admin/ui/keys/${k.id}/delete"
+              onsubmit="return confirm('Revoke key ${esc(k.key_prefix)}…? This cannot be undone.');">
+          <button class="btn danger sm" type="submit">Revoke</button>
+        </form>
+      </td></tr>`;
+  }
+  let lastSnapshot='';
+  async function refreshKeys(){
+    try{
+      const r=await fetch('/admin/ui/keys/data',{headers:{'Accept':'application/json'}});
+      if(r.status===401){location.href='/admin/ui/login';return;}
+      if(!r.ok)return;
+      const d=await r.json();
+      const snap=JSON.stringify(d);
+      if(snap===lastSnapshot)return;          // no change -> leave DOM (and clicks) alone
+      lastSnapshot=snap;
+      for(const [k,v] of Object.entries(d.summary||{})){
+        const el=document.querySelector(`[data-kpi="${k}"]`); if(el)el.textContent=v;
+      }
+      document.querySelector('#keytable tbody').innerHTML=(d.keys||[]).map(rowHTML).join('');
+      filterKeys();                            // preserve active search / tier filter
+    }catch(e){/* transient network error -> retry next tick */}
+  }
+  // Delegated copy handler (rows are replaced on refresh, so bind on the table).
+  document.getElementById('keytable').addEventListener('click',e=>{
+    const b=e.target.closest('.copykey'); if(b)copyText(b.dataset.key,b);
+  });
+  refreshKeys();
+  setInterval(refreshKeys,5000);
 </script>
 {% endblock %}

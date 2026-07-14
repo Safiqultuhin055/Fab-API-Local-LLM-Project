@@ -205,6 +205,42 @@ async def keys_page(request: Request, db: DbSession) -> Response:
     )
 
 
+@router.get("/keys/data")
+async def keys_data(request: Request, db: DbSession) -> Response:
+    """Live JSON snapshot of the api_keys table + usage, for the auto-refreshing
+    keys table. Mirrors what keys_page renders so the UI stays in sync with the
+    DB without a full reload."""
+    from fastapi.responses import JSONResponse
+
+    if not _is_authed(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    rows = await key_service.list_keys(db)
+    usage = await log_service.requests_count_by_key(db)
+    keys = []
+    for k in rows:
+        u = usage.get(k.id, {"total": 0, "errors": 0})
+        keys.append({
+            "id": k.id,
+            "key_prefix": k.key_prefix,
+            "owner_name": k.owner_name,
+            "status": k.status,
+            "tier": k.tier,
+            "rate_limit": k.rate_limit,
+            "ip_whitelist": k.ip_whitelist or "any",
+            "last_used": k.last_used.strftime("%m/%d %H:%M") if k.last_used else "—",
+            "requests": u["total"],
+            "errors": u["errors"],
+            "full_key": security.decrypt_secret(k.key_encrypted),
+        })
+    summary = {
+        "total": len(rows),
+        "active": sum(1 for k in rows if k.status == "active"),
+        "paid": sum(1 for k in rows if k.tier in ("pro", "enterprise")),
+        "requests": sum(u["total"] for u in usage.values()),
+    }
+    return JSONResponse({"keys": keys, "summary": summary})
+
+
 @router.post("/keys")
 async def create_key(
     request: Request,

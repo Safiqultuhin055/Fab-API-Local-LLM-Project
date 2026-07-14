@@ -8,8 +8,8 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # System deps: build tools for wheels + Microsoft ODBC Driver 18 (SQL Server).
-# The driver lets aioodbc/pyodbc reach the remote SQL Server; if it's unreachable
-# the app falls back to SQLite automatically.
+# The driver lets aioodbc/pyodbc reach the SQL Server. The app is SQL-Server-only
+# (no SQLite fallback), so this driver is required at runtime.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl gnupg apt-transport-https unixodbc-dev ca-certificates \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \

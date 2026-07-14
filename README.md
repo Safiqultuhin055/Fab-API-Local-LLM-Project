@@ -56,7 +56,7 @@ flowchart LR
   end
   GW --> SVC
   SVC -->|httpx async| LLM[(Local LLM\nOllama 11434 / LM Studio 1234)]
-  SVC --> DB[(SQL Server / SQLite\napi_keys · request_logs · settings)]
+  SVC --> DB[(SQL Server\napi_keys · request_logs · settings)]
   SVC -.optional.-> REDIS[(Redis\nrate limit)]
   SVC -->|embeddings + retrieval| KB[(Knowledge Base\nrag/knowledge_base.md)]
 ```
@@ -72,7 +72,7 @@ structured JSON logs. `/health` (liveness) vs `/ready` (DB + LLM checks).
 | Layer | Technology |
 |---|---|
 | **Backend** | Python 3.11+, FastAPI, SQLAlchemy 2.0 (async), Pydantic v2, Uvicorn |
-| **Database** | Microsoft SQL Server 2019+ (LocalDB) via `aioodbc`; SQLite (`aiosqlite`) for dev |
+| **Database** | Microsoft SQL Server 2019+ via `aioodbc` (ODBC Driver 18) — required, no fallback |
 | **LLM** | Ollama (native API) **or** LM Studio / any OpenAI-compatible server — switchable |
 | **Embeddings / RAG** | `text-embedding-nomic-embed-text-v1.5` (or any embed model), in-memory cosine retrieval |
 | **Cache / Rate limit** | In-memory sliding window; Redis backend (atomic Lua) optional |
@@ -100,8 +100,8 @@ structured JSON logs. `/health` (liveness) vs `/ready` (DB + LLM checks).
 
 ## 5. Database
 
-Async SQLAlchemy 2.0 models; runs on **SQL Server** (prod) or **SQLite** (dev) by
-swapping `DATABASE_URL`. Raw DDL lives in [`database/init_db.sql`](database/init_db.sql).
+Async SQLAlchemy 2.0 models; connects exclusively to **SQL Server** via the
+`MSSQL_*` settings (no SQLite fallback). Raw DDL lives in [`database/init_db.sql`](database/init_db.sql).
 
 | Table | Purpose | Notable columns |
 |---|---|---|
@@ -231,7 +231,7 @@ uvicorn app.main:app --reload
 ```
 
 - **Dashboard:** http://127.0.0.1:8000/admin/ui  ·  **Chat:** http://127.0.0.1:8000/chat  ·  **Docs:** http://127.0.0.1:8000/docs
-- Default DB is SQLite (zero-config). For SQL Server LocalDB, set `DATABASE_URL` (see `.env.example`).
+- DB is SQL Server only: set `MSSQL_HOST` + `MSSQL_PASSWORD` in `.env` (see `.env.example`). The app won't start without a reachable SQL Server.
 - Default LLM is Ollama; for LM Studio set `LLM_BACKEND=openai` and start its server on `:1234`.
 
 ### Docker
@@ -243,7 +243,7 @@ docker compose up --build      # gateway + redis + nginx (LLM runs on host)
 
 ## 12. Configuration (`.env`)
 
-Key settings (full list in `.env.example`): `LLM_BACKEND`, `DATABASE_URL`,
+Key settings (full list in `.env.example`): `LLM_BACKEND`, `MSSQL_HOST`/`MSSQL_PASSWORD`,
 `HMAC_SECRET`, `ADMIN_API_KEY`, `ADMIN_USERNAME`/`ADMIN_PASSWORD`, `OLLAMA_BASE_URL`,
 `OPENAI_BASE_URL`, `DEFAULT_MODEL`, `EMBEDDING_MODEL`, `RAG_TOP_K`, `RAG_MIN_SCORE`,
 `RAG_TIMEOUT_SECONDS`, `RATE_LIMIT_BACKEND`, `CORS_ORIGINS`, `LOG_*`.

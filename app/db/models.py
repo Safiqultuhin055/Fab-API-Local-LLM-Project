@@ -87,9 +87,9 @@ class RequestLog(TimestampMixin, Base):
         Index("ix_request_logs_model", "model"),
     )
 
-    # BIGINT on SQL Server; INTEGER on SQLite so rowid autoincrement works.
+    # BIGINT IDENTITY on SQL Server.
     id: Mapped[int] = mapped_column(
-        BigInteger().with_variant(Integer, "sqlite"),
+        BigInteger,
         primary_key=True,
         autoincrement=True,
     )

@@ -23,18 +23,17 @@ services:
       REDIS_URL: redis://redis:6379/0
       # NOTE: MSSQL_* are intentionally NOT set here. `environment:` overrides
       # `env_file:`, and `${MSSQL_HOST:-}` reads the HOST SHELL (unset on the
-      # server) -> injects an EMPTY MSSQL_HOST that blanks the .env value, so the
-      # app thinks SQL Server is "not configured" and silently uses container-
-      # local SQLite. Leaving them out lets env_file (.env) supply them, so the
-      # container writes to the real SQL Server at 192.168.153.248.
+      # server) -> injects an EMPTY MSSQL_HOST that blanks the .env value, and the
+      # app (SQL-Server-only, no fallback) would then refuse to start. Leaving
+      # them out lets env_file (.env) supply them, so the container connects to
+      # the real SQL Server at 192.168.153.248.
       # (If SQL Server runs on the DOCKER HOST itself, set MSSQL_HOST=host.docker.internal in .env.)
     ports:
       # Host 8009 -> container 8000. Reach the API at http://localhost:8009
       # (or via nginx on :80). Container-internal port stays 8000.
       - "8009:8000"
     volumes:
-      # Persist RAG knowledge-base writes across container restarts. The SQLite
-      # fallback (only used if SQL Server is unreachable) stays container-local.
+      # Persist RAG knowledge-base writes across container restarts.
       - ./rag:/app/rag
     depends_on:
       - redis

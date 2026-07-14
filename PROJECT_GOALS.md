@@ -67,8 +67,8 @@ prototype first, then layer enterprise features.** This plan adopts that resolut
 ---
 
 ## 4. Tech decisions (defaults chosen so it runs immediately)
-- **DB:** async SQLAlchemy 2.0. Default dev URL = SQLite (`aiosqlite`) so it runs with no SQL Server;
-  `DATABASE_URL` switchable to SQL Server (`aioodbc`, ODBC Driver 18) for prod.
+- **DB:** async SQLAlchemy 2.0 on Microsoft SQL Server only (`aioodbc`, ODBC Driver 18),
+  configured via `MSSQL_*`. No SQLite fallback — the app refuses to start without a reachable SQL Server.
 - **Admin auth:** static admin API key (`ADMIN_API_KEY`) per diagram. JWT users deferred to Track B.
 - **Streaming:** SSE for `/chat/stream`.
 - **Rate limiting:** in-memory/DB sliding window now, Redis backend pluggable via `REDIS_URL`.

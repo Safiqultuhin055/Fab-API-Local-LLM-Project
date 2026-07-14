@@ -16,7 +16,7 @@ py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 #   (Python 3.14? wheels for pinned pydantic-core/greenlet are missing — use:)
-#   .\.venv\Scripts\python.exe -m pip install fastapi "uvicorn[standard]" sqlalchemy aiosqlite greenlet httpx pydantic pydantic-settings python-json-logger
+#   .\.venv\Scripts\python.exe -m pip install fastapi "uvicorn[standard]" sqlalchemy aioodbc greenlet httpx pydantic pydantic-settings python-json-logger
 
 
 # --- 2. Config (once) ---

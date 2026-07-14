@@ -24,27 +24,19 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     debug: bool = True
 
-    # --- Database ---
-    # Local fallback (always works, zero-config). Used when SQL Server below is
-    # not configured or is unreachable at startup.
-    database_url: str = "sqlite+aiosqlite:///./ai_gateway.db"
-
-    # --- SQL Server (optional primary DB) ---
-    # If MSSQL_HOST + MSSQL_PASSWORD are set AND the server answers on the port at
-    # startup, the gateway uses SQL Server; otherwise it auto-falls back to the
-    # local SQLite database_url above. Needs ODBC Driver 18 + aioodbc installed.
-    mssql_host: str = ""                 # e.g. 192.168.153.248 (empty = disabled)
+    # --- Database (SQL Server only) ---
+    # The gateway connects exclusively to Microsoft SQL Server. There is no
+    # SQLite fallback: MSSQL_HOST + MSSQL_PASSWORD must be set and the server must
+    # be reachable at startup, or the app refuses to start. Needs ODBC Driver 18
+    # + aioodbc installed (the Docker image installs both).
+    mssql_host: str = "192.168.153.248"
     mssql_port: int = 1433
     mssql_database: str = "ai_gateway"
     mssql_user: str = "sa"
     mssql_password: str = ""
     mssql_driver: str = "ODBC Driver 18 for SQL Server"
-    # Seconds to probe SQL Server before deciding to fall back to SQLite.
+    # Seconds to probe SQL Server for reachability at startup before erroring.
     db_probe_timeout: float = 3.0
-    # If true, refuse to start on the SQLite fallback: SQL Server MUST be
-    # configured AND reachable. Set this on the server/Docker deploy so a bad
-    # MSSQL_* config fails loudly instead of silently writing to throwaway SQLite.
-    db_require_mssql: bool = False
 
     # --- Security ---
     hmac_secret: str = "dev-insecure-change-me"

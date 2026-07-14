@@ -1,9 +1,9 @@
 """Async SQLAlchemy 2.0 engine, session factory, and declarative base.
 
-Database selection is automatic: if SQL Server is configured (MSSQL_HOST +
-MSSQL_PASSWORD) and reachable at startup, the gateway uses it; otherwise it
-falls back to the local SQLite `DATABASE_URL`. `init_db` creates tables for the
-prototype; Alembic owns schema in the enterprise track.
+The gateway connects exclusively to Microsoft SQL Server (MSSQL_HOST +
+MSSQL_PASSWORD). There is no SQLite fallback: if SQL Server is not configured or
+is unreachable at startup, the app refuses to start. `init_db` creates tables for
+the prototype; Alembic owns schema in the enterprise track.
 """
 from __future__ import annotations
 
@@ -33,39 +33,28 @@ def _tcp_reachable(host: str, port: int, timeout: float) -> bool:
 
 
 def resolve_database_url() -> str:
-    """Pick SQL Server if configured + reachable, else the local SQLite URL.
+    """Return the SQL Server URL, or raise if it's not configured/unreachable.
 
-    If DB_REQUIRE_MSSQL is set, a missing/unreachable SQL Server is a hard error
-    instead of a silent SQLite fallback — so a misconfigured deploy fails fast
-    rather than quietly writing to a throwaway container-local database.
+    There is no SQLite fallback — a misconfigured or unreachable database is a
+    hard startup error so data never silently lands in a throwaway local DB.
     """
     mssql = settings.mssql_url
-    if mssql:
-        if _tcp_reachable(settings.mssql_host, settings.mssql_port, settings.db_probe_timeout):
-            logger.info(
-                "DB: SQL Server @ %s:%s/%s",
-                settings.mssql_host, settings.mssql_port, settings.mssql_database,
-            )
-            return mssql
-        msg = (
-            f"SQL Server {settings.mssql_host}:{settings.mssql_port} unreachable"
+    if not mssql:
+        raise RuntimeError(
+            "SQL Server not configured: set MSSQL_HOST and MSSQL_PASSWORD in .env. "
+            "In Docker, ensure .env reaches the container via env_file and is not "
+            "overridden by empty environment: values."
         )
-        if settings.db_require_mssql:
-            raise RuntimeError(
-                f"{msg} and DB_REQUIRE_MSSQL is set — refusing to start on SQLite. "
-                "Check MSSQL_HOST/PORT/PASSWORD and network reachability from this host."
-            )
-        logger.warning("%s — falling back to local SQLite", msg)
-    else:
-        if settings.db_require_mssql:
-            raise RuntimeError(
-                "SQL Server not configured (MSSQL_HOST/MSSQL_PASSWORD empty) but "
-                "DB_REQUIRE_MSSQL is set. In Docker, ensure .env reaches the "
-                "container via env_file and is not overridden by empty "
-                "environment: values."
-            )
-        logger.info("DB: local SQLite (SQL Server not configured)")
-    return settings.database_url
+    if not _tcp_reachable(settings.mssql_host, settings.mssql_port, settings.db_probe_timeout):
+        raise RuntimeError(
+            f"SQL Server {settings.mssql_host}:{settings.mssql_port} unreachable. "
+            "Check MSSQL_HOST/PORT/PASSWORD and network reachability from this host."
+        )
+    logger.info(
+        "DB: SQL Server @ %s:%s/%s",
+        settings.mssql_host, settings.mssql_port, settings.mssql_database,
+    )
+    return mssql
 
 
 engine = create_async_engine(

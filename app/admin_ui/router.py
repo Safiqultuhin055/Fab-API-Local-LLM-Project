@@ -246,6 +246,37 @@ async def logs_page(
     )
 
 
+@router.get("/usage", response_class=HTMLResponse)
+async def usage_page(
+    request: Request, db: DbSession, key: str = "", days: int = 30
+) -> Response:
+    if not _is_authed(request):
+        return _login_redirect()
+    days = max(1, min(days, 365))
+    key = (key or "").strip()
+    report = await log_service.usage_daily_report(
+        db, key_prefix=key or None, days=days
+    )
+    by_key = await log_service.usage_by_key(db, days=days)
+    # Reuse the dashboard trend chart geometry, driven by daily total tokens.
+    trend = _trend_svg([{"label": r["label"], "count": r["total_tokens"]} for r in report])
+    totals = {
+        "requests": sum(int(r["requests"]) for r in report),
+        "prompt_tokens": sum(int(r["prompt_tokens"]) for r in report),
+        "completion_tokens": sum(int(r["completion_tokens"]) for r in report),
+        "total_tokens": sum(int(r["total_tokens"]) for r in report),
+    }
+    return _templates.TemplateResponse(
+        request, "usage.html",
+        {
+            "active": "usage", "admin": settings.admin_username,
+            "report": list(reversed(report)),  # newest day first in the table
+            "by_key": by_key, "trend": trend, "totals": totals,
+            "key": key, "days": days,
+        },
+    )
+
+
 @router.get("/models", response_class=HTMLResponse)
 async def models_page(request: Request, db: DbSession, ollama: OllamaDep) -> Response:
     if not _is_authed(request):

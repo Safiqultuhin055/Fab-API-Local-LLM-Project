@@ -83,6 +83,40 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_request_logs_model' AND 
     CREATE INDEX ix_request_logs_model ON dbo.request_logs(model);
 GO
 
+/* ---------- usage_daily ----------
+   Per-API-key daily rollup of request count + token totals. Incremented by the
+   app on every logged request; powers the dashboard token panel and the
+   day-to-day usage report (searchable by API key). One row per key per day. */
+IF OBJECT_ID('dbo.usage_daily', 'U') IS NULL
+CREATE TABLE dbo.usage_daily (
+    id                INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    api_key_id        INT           NOT NULL,
+    key_prefix        NVARCHAR(16)  NULL,
+    usage_date        DATE          NOT NULL,
+    request_count     INT           NOT NULL CONSTRAINT DF_usage_reqs DEFAULT(0),
+    prompt_tokens     INT           NOT NULL CONSTRAINT DF_usage_pt   DEFAULT(0),
+    completion_tokens INT           NOT NULL CONSTRAINT DF_usage_ct   DEFAULT(0),
+    total_tokens      INT           NOT NULL CONSTRAINT DF_usage_tt   DEFAULT(0),
+    created_date  DATETIMEOFFSET NOT NULL CONSTRAINT DF_usage_cd DEFAULT(SYSDATETIMEOFFSET()),
+    updated_date  DATETIMEOFFSET NOT NULL CONSTRAINT DF_usage_ud DEFAULT(SYSDATETIMEOFFSET()),
+    created_by    NVARCHAR(100) NULL,
+    updated_by    NVARCHAR(100) NULL,
+    is_deleted    BIT           NOT NULL CONSTRAINT DF_usage_del DEFAULT(0),
+    deleted_at    DATETIMEOFFSET NULL,
+    CONSTRAINT uq_usage_daily_key_day UNIQUE (api_key_id, usage_date),
+    CONSTRAINT fk_usage_daily_api_key FOREIGN KEY (api_key_id) REFERENCES dbo.api_keys(id)
+);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_usage_daily_usage_date' AND object_id=OBJECT_ID('dbo.usage_daily'))
+    CREATE INDEX ix_usage_daily_usage_date ON dbo.usage_daily(usage_date);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_usage_daily_api_key_id' AND object_id=OBJECT_ID('dbo.usage_daily'))
+    CREATE INDEX ix_usage_daily_api_key_id ON dbo.usage_daily(api_key_id);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_usage_daily_key_prefix' AND object_id=OBJECT_ID('dbo.usage_daily'))
+    CREATE INDEX ix_usage_daily_key_prefix ON dbo.usage_daily(key_prefix);
+GO
+
 /* ---------- settings ----------
    Key/value store. Also backs model enable/disable (models.enabled) and the
    default model (models.default). */

@@ -29,6 +29,17 @@ async def lifespan(app: FastAPI):
     configure_logging()
     logger.info("Database: %s", engine.url.render_as_string(hide_password=True))
     await init_db()
+    # Seed the per-key daily usage rollup from historical request_logs (no-op if
+    # already populated), so the token report has data from day one.
+    try:
+        from app.db.base import SessionFactory
+        from app.services import log_service
+        async with SessionFactory() as _s:
+            seeded = await log_service.backfill_usage_daily(_s)
+        if seeded:
+            logger.info("usage_daily backfilled: %d day/key rows", seeded)
+    except Exception as exc:  # never block startup on analytics seeding
+        logger.warning("usage_daily backfill skipped: %s", exc)
     app.state.ollama = build_llm_service()
     app.state.rate_limiter = build_rate_limiter()
     from app.services.rag_service import RagService

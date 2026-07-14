@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Token Usage - AI Gateway{% endblock %}
+{% block heading %}Token Usage{% endblock %}
+{% block crumb %}Per-API-key token consumption, day by day{% endblock %}
+{% block body %}
+
+<!-- search / filter -->
+<div class="card" style="margin-bottom:18px">
+  <form method="get" action="/admin/ui/usage" class="row">
+    <div class="field" style="flex:1;min-width:200px">
+      <label>API key (prefix)</label>
+      <input name="key" value="{{ key }}" placeholder="e.g. AI-xxxx — blank = all keys" style="width:100%">
+    </div>
+    <div class="field">
+      <label>Window</label>
+      <select name="days">
+        {% for d in [7, 14, 30, 60, 90] %}
+        <option value="{{ d }}" {{ 'selected' if days==d }}>Last {{ d }} days</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn" type="submit">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      Search
+    </button>
+    {% if key %}<a class="btn ghost" href="/admin/ui/usage?days={{ days }}">Clear</a>{% endif %}
+  </form>
+</div>
+
+<!-- totals for the current window -->
+<div class="grid kpis" style="margin-bottom:18px">
+  {% set cards = [
+    ('Total Tokens', totals.total_tokens, '#8b5cf6'),
+    ('Prompt Tokens', totals.prompt_tokens, '#22d3ee'),
+    ('Completion Tokens', totals.completion_tokens, '#34d399'),
+    ('Requests', totals.requests, '#6366f1'),
+  ] %}
+  {% for label,value,color in cards %}
+  <div class="card kpi">
+    <div>
+      <div class="label">{{ label }}</div>
+      <div class="value"><span class="count" data-to="{{ value }}">0</span></div>
+      <span class="chip flat">{{ 'this key' if key else 'all keys' }} · {{ days }}d</span>
+    </div>
+    <div class="ic" style="background:linear-gradient(135deg,{{ color }},{{ color }}aa)">
+      <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- token trend -->
+<div class="panel" style="margin-bottom:18px">
+  <div class="head"><div><h3>Daily Token Usage</h3>
+    <div class="sub">{{ 'Key ' ~ key if key else 'All keys' }} — peak {{ trend.top }} tokens/day</div></div>
+    <span class="pill neutral">{{ days }}d</span></div>
+  <div class="body">
+    <svg viewBox="0 0 {{ trend.width }} {{ trend.height }}" width="100%" preserveAspectRatio="none" style="display:block">
+      <defs>
+        <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.35"/><stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="ln" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#a855f7"/>
+        </linearGradient>
+      </defs>
+      {% for gy in trend.grid %}<line x1="28" y1="{{ gy }}" x2="{{ trend.width-28 }}" y2="{{ gy }}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>{% endfor %}
+      <polygon points="{{ trend.area }}" fill="url(#area)"/>
+      <polyline points="{{ trend.line }}" fill="none" stroke="url(#ln)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" style="filter:drop-shadow(0 0 6px rgba(139,92,246,.6))"/>
+      {% for x,y in trend.dots %}<circle cx="{{ x }}" cy="{{ y }}" r="2.6" fill="#0a0f24" stroke="#22d3ee" stroke-width="2"/>{% endfor %}
+      {% for lb in trend.labels %}<text x="{{ lb.x }}" y="{{ trend.height-6 }}" font-size="10" fill="#7c87aa" text-anchor="middle">{{ lb.text }}</text>{% endfor %}
+    </svg>
+  </div>
+</div>
+
+<div class="grid" style="grid-template-columns:1fr 1fr">
+  <!-- day-to-day report -->
+  <div class="panel">
+    <div class="head"><div><h3>Day-to-Day Report</h3>
+      <div class="sub">{{ 'Key ' ~ key if key else 'All keys combined' }}</div></div></div>
+    <div class="body" style="padding:0">
+      <table>
+        <thead><tr><th>Date</th><th>Requests</th><th>Prompt</th><th>Completion</th><th>Total</th></tr></thead>
+        <tbody>
+        {% for r in report %}
+          <tr>
+            <td>{{ r.date }}</td>
+            <td>{{ r.requests }}</td>
+            <td class="muted">{{ r.prompt_tokens }}</td>
+            <td class="muted">{{ r.completion_tokens }}</td>
+            <td><b>{{ r.total_tokens }}</b></td>
+          </tr>
+        {% else %}<tr><td colspan="5" class="muted" style="padding:24px;text-align:center">No usage in this window.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- per-key leaderboard -->
+  <div class="panel">
+    <div class="head"><div><h3>By API Key</h3>
+      <div class="sub">Biggest consumers · last {{ days }} days</div></div></div>
+    <div class="body" style="padding:0">
+      <table>
+        <thead><tr><th>Key</th><th>Owner</th><th>Requests</th><th>Total Tokens</th></tr></thead>
+        <tbody>
+        {% for k in by_key %}
+          <tr>
+            <td><a href="/admin/ui/usage?key={{ k.key_prefix }}&days={{ days }}"><code>{{ k.key_prefix or '-' }}</code></a></td>
+            <td>{{ k.owner_name }}</td>
+            <td>{{ k.requests }}</td>
+            <td><b>{{ k.total_tokens }}</b></td>
+          </tr>
+        {% else %}<tr><td colspan="4" class="muted" style="padding:24px;text-align:center">No usage yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.count').forEach(el=>{
+    const to=parseFloat(el.dataset.to)||0,dur=900,t0=performance.now();
+    function step(t){const p=Math.min((t-t0)/dur,1),e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(to*e).toLocaleString();if(p<1)requestAnimationFrame(step);}
+    requestAnimationFrame(step);
+  });
+</script>
+{% endblock %}

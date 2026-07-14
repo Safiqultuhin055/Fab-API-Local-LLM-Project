@@ -5,11 +5,12 @@ All tables carry soft-delete + audit columns to stay enterprise-compatible.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Index,
     Integer,
@@ -107,6 +108,32 @@ class RequestLog(TimestampMixin, Base):
     user_agent: Mapped[str | None] = mapped_column(String(400), nullable=True)
     request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class UsageDaily(TimestampMixin, Base):
+    """Per-API-key daily usage rollup: request count + token totals per day.
+
+    Incremented on every logged request (see log_service.write_log). Powers the
+    dashboard token-usage panel and the day-to-day report searchable by API key.
+    One row per (api_key_id, usage_date).
+    """
+    __tablename__ = "usage_daily"
+    __table_args__ = (
+        UniqueConstraint("api_key_id", "usage_date", name="uq_usage_daily_key_day"),
+        Index("ix_usage_daily_usage_date", "usage_date"),
+        Index("ix_usage_daily_api_key_id", "api_key_id"),
+        Index("ix_usage_daily_key_prefix", "key_prefix"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    api_key_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Denormalized non-secret prefix so the report is searchable without a join.
+    key_prefix: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    usage_date: Mapped[date] = mapped_column(Date, nullable=False)
+    request_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    completion_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
 class User(TimestampMixin, Base):

@@ -29,3 +29,5 @@ class Stats(BaseModel):
     today_requests: int
     error_count: int
     avg_response_time_ms: float
+    total_tokens: int = 0
+    tokens_today: int = 0

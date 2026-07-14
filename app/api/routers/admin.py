@@ -80,6 +80,28 @@ async def stats(db: DbSession, _: AdminAuth) -> Stats:
     )
 
 
+@router.get("/usage")
+async def token_usage(
+    db: DbSession,
+    _: AdminAuth,
+    key_prefix: str | None = None,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
+) -> dict[str, object]:
+    """Per-API-key token usage. Day-to-day report (optionally filtered to one
+    key via `key_prefix`) plus a per-key leaderboard over the window."""
+    report = await log_service.usage_daily_report(
+        db, key_prefix=key_prefix, days=days
+    )
+    by_key = await log_service.usage_by_key(db, days=days)
+    return {
+        "success": True,
+        "days": days,
+        "key_prefix": key_prefix,
+        "report": report,
+        "by_key": by_key,
+    }
+
+
 # --- Model management (enable/disable + default selection) ---
 @router.get("/models")
 async def admin_models(

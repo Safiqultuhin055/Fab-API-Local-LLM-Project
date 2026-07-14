@@ -5,6 +5,7 @@ comes from the environment / .env (see .env.example).
 """
 from __future__ import annotations
 
+import socket
 from functools import lru_cache
 from typing import Annotated, Literal
 
@@ -60,7 +61,17 @@ class Settings(BaseSettings):
     llm_backend: Literal["ollama", "openai"] = "ollama"
 
     # --- Ollama ---
+    # Ollama lives on the "pele" server only. Selection is automatic by machine:
+    #   - running ON pele (this host holds PELE_IP) -> ollama_base_url (its own
+    #     localhost).
+    #   - running on a local PC -> ollama_remote_url (reach pele over the LAN).
+    # See resolve_ollama_base_url() below.
     ollama_base_url: str = "http://localhost:11434"
+    # Pele's Ollama as seen from another machine on the LAN.
+    ollama_remote_url: str = "http://192.168.153.250:11434"
+    # LAN IP that identifies the pele server. If a local network interface holds
+    # this address, we're on pele and use ollama_base_url; otherwise ollama_remote_url.
+    pele_ip: str = "192.168.153.250"
     ollama_timeout_seconds: float = 120.0
     default_model: str = "llama3.1"
 
@@ -126,3 +137,27 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+
+def _local_ips() -> set[str]:
+    """Best-effort set of IPv4/IPv6 addresses bound to this machine."""
+    ips: set[str] = set()
+    try:
+        host = socket.gethostname()
+        try:
+            ips.add(socket.gethostbyname(host))
+        except OSError:
+            pass
+        for info in socket.getaddrinfo(host, None):
+            ips.add(info[4][0])
+    except OSError:
+        pass
+    return ips
+
+
+@lru_cache
+def resolve_ollama_base_url() -> str:
+    """Ollama lives on pele. On pele -> its own localhost; elsewhere -> pele LAN IP."""
+    if settings.pele_ip and settings.pele_ip in _local_ips():
+        return settings.ollama_base_url
+    return settings.ollama_remote_url

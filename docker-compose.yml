@@ -12,7 +12,13 @@ services:
       # (not ${OLLAMA_BASE_URL:-…}) because compose would otherwise interpolate
       # the .env value http://localhost:11434, which inside the container points
       # at the container itself -> empty model list.
+      #
+      # The gateway auto-picks its Ollama URL by machine (see resolve_ollama_base_url):
+      # inside a container the host-detection never matches PELE_IP (the container
+      # has its own IP), so it always takes the REMOTE branch. Point that at the
+      # host's Ollama so a container on pele still reaches host Ollama.
       OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_REMOTE_URL: http://host.docker.internal:11434
       RATE_LIMIT_BACKEND: redis
       REDIS_URL: redis://redis:6379/0
       # SQL Server selection (all read from .env; listed for visibility).

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from app.core.config import settings
+from app.core.config import resolve_ollama_base_url, settings
 from app.core.errors import NotFoundError, UpstreamError
 from app.core.logging import get_logger
 
@@ -29,8 +29,10 @@ class CompletionResult:
 
 class OllamaService:
     def __init__(self) -> None:
+        base_url = resolve_ollama_base_url()
+        logger.info("Ollama backend @ %s", base_url)
         self._client = httpx.AsyncClient(
-            base_url=settings.ollama_base_url,
+            base_url=base_url,
             timeout=httpx.Timeout(settings.ollama_timeout_seconds),
         )
 

@@ -153,7 +153,8 @@ def build_llm_service():
     if settings.llm_backend == "openai":
         logger.info("LLM backend: OpenAI-compatible @ %s", settings.openai_base_url)
         return OpenAIService()
+    from app.core.config import resolve_ollama_base_url
     from app.services.ollama_service import OllamaService
 
-    logger.info("LLM backend: Ollama @ %s", settings.ollama_base_url)
+    logger.info("LLM backend: Ollama @ %s", resolve_ollama_base_url())
     return OllamaService()

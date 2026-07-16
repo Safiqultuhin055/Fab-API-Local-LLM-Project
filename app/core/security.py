@@ -50,9 +50,24 @@ def verify_api_key(full_key: str, stored_hash: str) -> bool:
 # --- Reversible encryption of the full key (so the admin UI can re-copy it).
 # Fernet (AES-128-CBC + HMAC) keyed from HMAC_SECRET. The DB never holds the
 # plaintext key — only this ciphertext, which is useless without HMAC_SECRET.
-def _fernet() -> Fernet:
-    digest = hashlib.sha256(settings.hmac_secret.encode("utf-8")).digest()
+def _fernet_for(secret: str) -> Fernet:
+    digest = hashlib.sha256(secret.encode("utf-8")).digest()
     return Fernet(base64.urlsafe_b64encode(digest))
+
+
+def _fernet() -> Fernet:
+    """Fernet keyed on the CURRENT secret — used for all new encryption."""
+    return _fernet_for(settings.hmac_secret)
+
+
+def _decrypt_fernets() -> list[Fernet]:
+    """Current secret first, then any HMAC_SECRET_FALLBACKS (old/sibling secrets).
+
+    Lets the admin UI still decrypt+copy keys encrypted under a previous secret
+    or a sibling instance without rotating them.
+    """
+    secrets_in_order = [settings.hmac_secret, *settings.hmac_secret_fallbacks]
+    return [_fernet_for(s) for s in secrets_in_order if s]
 
 
 def encrypt_secret(plaintext: str) -> str:
@@ -60,12 +75,16 @@ def encrypt_secret(plaintext: str) -> str:
 
 
 def decrypt_secret(token: str | None) -> str | None:
+    """Decrypt a stored key, trying the current secret then any fallbacks."""
     if not token:
         return None
-    try:
-        return _fernet().decrypt(token.encode("utf-8")).decode("utf-8")
-    except (InvalidToken, ValueError):
-        return None
+    raw = token.encode("utf-8")
+    for f in _decrypt_fernets():
+        try:
+            return f.decrypt(raw).decode("utf-8")
+        except (InvalidToken, ValueError):
+            continue
+    return None
 
 
 # --- Password hashing — Argon2id when available, PBKDF2-HMAC-SHA256 fallback.

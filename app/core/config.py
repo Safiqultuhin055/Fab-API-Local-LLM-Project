@@ -40,6 +40,11 @@ class Settings(BaseSettings):
 
     # --- Security ---
     hmac_secret: str = "dev-insecure-change-me"
+    # Old/other HMAC secrets (comma-separated) kept ONLY so the admin UI can still
+    # decrypt+copy keys that were encrypted under a previous secret or a sibling
+    # instance (e.g. server Docker vs local reload). New encryption always uses
+    # hmac_secret; decrypt falls back through these. Empty by default.
+    hmac_secret_fallbacks: Annotated[list[str], NoDecode] = Field(default_factory=list)
     admin_api_key: str = "dev-admin-change-me"
     # Dashboard UI login (username + password). Programmatic /admin/* API still
     # uses admin_api_key via the X-ADMIN-KEY header.
@@ -99,7 +104,7 @@ class Settings(BaseSettings):
     log_body_max_chars: int = 2000
     log_retention_days: int = 90
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "hmac_secret_fallbacks", mode="before")
     @classmethod
     def _split_csv(cls, v: object) -> object:
         # Allow "a,b,c" in env to become a list.
